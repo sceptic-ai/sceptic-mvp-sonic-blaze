@@ -1,0 +1,4020 @@
+Language,Content,Source
+Python,"```python
+def send_file(filename: str = ""mytext.txt"", testing: bool = False) -> None:
+    import socket
+
+    port = 12312  # Reserve a port for your service.
+    sock = socket.socket()  # Create a socket object
+    host = socket.gethostname()  # Get local machine name
+    sock.bind((host, port))  # Bind to the port
+    sock.listen(5)  # Now wait for client connection.
+
+    print(""Server listening...."")
+
+    while True:
+        conn, addr = sock.accept()  # Establish connection with client.
+        print(f""Got connection from {addr}"")
+        data = conn.recv(1024)
+        print(f""Server received: {data = }"")
+
+        with open(filename, ""rb"") as in_file:
+            data = in_file.read(1024)
+            while data:
+                conn.send(data)
+                print(f""Sent {data!r}"")
+                data = in_file.read(1024)
+
+        print(""Done sending"")
+        conn.close()
+        if testing:  # Allow the test to complete
+            break
+
+    sock.shutdown(1)
+    sock.close()
+
+
+if __name__ == ""__main__"":
+    send_file()
+",human
+C++,"#define BLACK 1
+#define RED 0
+#include <iostream>
+
+using namespace std;
+
+class bst {
+private:
+
+	struct Node {
+		int value;
+		bool color;
+		Node *leftTree, *rightTree, *parent;
+
+		Node() : value(0), color(RED), leftTree(NULL), rightTree(NULL), parent(NULL) { }
+
+		Node* grandparent() {
+			if (parent == NULL) {
+				return NULL;
+			}
+			return parent->parent;
+		}
+
+		Node* uncle() {
+			if (grandparent() == NULL) {
+				return NULL;
+			}
+			if (parent == grandparent()->rightTree)
+				return grandparent()->leftTree;
+			else
+				return grandparent()->rightTree;
+		}
+
+		Node* sibling() {
+			if (parent->leftTree == this)
+				return parent->rightTree;
+			else
+				return parent->leftTree;
+		}
+	};
+
+	void rotate_right(Node *p) {
+		Node *gp = p->grandparent();
+		Node *fa = p->parent;
+		Node *y = p->rightTree;
+
+		fa->leftTree = y;
+
+		if (y != NIL)
+			y->parent = fa;
+		p->rightTree = fa;
+		fa->parent = p;
+
+		if (root == fa)
+			root = p;
+		p->parent = gp;
+
+		if (gp != NULL) {
+			if (gp->leftTree == fa)
+				gp->leftTree = p;
+			else
+				gp->rightTree = p;
+		}
+
+	}
+
+	void rotate_left(Node *p) {
+		if (p->parent == NULL) {
+			root = p;
+			return;
+		}
+		Node *gp = p->grandparent();
+		Node *fa = p->parent;
+		Node *y = p->leftTree;
+
+		fa->rightTree = y;
+
+		if (y != NIL)
+			y->parent = fa;
+		p->leftTree = fa;
+		fa->parent = p;
+
+		if (root == fa)
+			root = p;
+		p->parent = gp;
+
+		if (gp != NULL) {
+			if (gp->leftTree == fa)
+				gp->leftTree = p;
+			else
+				gp->rightTree = p;
+		}
+	}
+
+	void inorder(Node *p) {
+		if (p == NIL)
+			return;
+
+		if (p->leftTree)
+			inorder(p->leftTree);
+
+		cout << p->value << "" "";
+
+		if (p->rightTree)
+			inorder(p->rightTree);
+	}
+
+	string outputColor(bool color) {
+		return color ? ""BLACK"" : ""RED"";
+	}
+
+	Node* getSmallestChild(Node *p) {
+		if (p->leftTree == NIL)
+			return p;
+		return getSmallestChild(p->leftTree);
+	}
+
+	bool delete_child(Node *p, int data) {
+		if (p->value > data) {
+			if (p->leftTree == NIL) {
+				return false;
+			}
+			return delete_child(p->leftTree, data);
+		}
+		else if (p->value < data) {
+			if (p->rightTree == NIL) {
+				return false;
+			}
+			return delete_child(p->rightTree, data);
+		}
+		else if (p->value == data) {
+			if (p->rightTree == NIL) {
+				delete_one_child(p);
+				return true;
+			}
+			Node *smallest = getSmallestChild(p->rightTree);
+			swap(p->value, smallest->value);
+			delete_one_child(smallest);
+
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
+	void delete_one_child(Node *p) {
+		Node *child = p->leftTree == NIL ? p->rightTree : p->leftTree;
+		if (p->parent == NULL && p->leftTree == NIL && p->rightTree == NIL) {
+			p = NULL;
+			root = p;
+			return;
+		}
+
+		if (p->parent == NULL) {
+			delete  p;
+			child->parent = NULL;
+			root = child;
+			root->color = BLACK;
+			return;
+		}
+
+		if (p->parent->leftTree == p) {
+			p->parent->leftTree = child;
+		}
+		else {
+			p->parent->rightTree = child;
+		}
+		child->parent = p->parent;
+
+		if (p->color == BLACK) {
+			if (child->color == RED) {
+				child->color = BLACK;
+			}
+			else
+				delete_case(child);
+		}
+
+		delete p;
+	}
+
+	void delete_case(Node *p) {
+		if (p->parent == NULL) {
+			p->color = BLACK;
+			return;
+		}
+		if (p->sibling()->color == RED) {
+			p->parent->color = RED;
+			p->sibling()->color = BLACK;
+			if (p == p->parent->leftTree)
+				rotate_left(p->sibling());
+			else
+				rotate_right(p->sibling());
+		}
+		if (p->parent->color == BLACK && p->sibling()->color == BLACK
+			&& p->sibling()->leftTree->color == BLACK && p->sibling()->rightTree->color == BLACK) {
+			p->sibling()->color = RED;
+			delete_case(p->parent);
+		}
+		else if (p->parent->color == RED && p->sibling()->color == BLACK
+			&& p->sibling()->leftTree->color == BLACK && p->sibling()->rightTree->color == BLACK) {
+			p->sibling()->color = RED;
+			p->parent->color = BLACK;
+		}
+		else {
+			if (p->sibling()->color == BLACK) {
+				if (p == p->parent->leftTree && p->sibling()->leftTree->color == RED
+					&& p->sibling()->rightTree->color == BLACK) {
+					p->sibling()->color = RED;
+					p->sibling()->leftTree->color = BLACK;
+					rotate_right(p->sibling()->leftTree);
+				}
+				else if (p == p->parent->rightTree && p->sibling()->leftTree->color == BLACK
+					&& p->sibling()->rightTree->color == RED) {
+					p->sibling()->color = RED;
+					p->sibling()->rightTree->color = BLACK;
+					rotate_left(p->sibling()->rightTree);
+				}
+			}
+			p->sibling()->color = p->parent->color;
+			p->parent->color = BLACK;
+			if (p == p->parent->leftTree) {
+				p->sibling()->rightTree->color = BLACK;
+				rotate_left(p->sibling());
+			}
+			else {
+				p->sibling()->leftTree->color = BLACK;
+				rotate_right(p->sibling());
+			}
+		}
+	}
+
+	void insert(Node *p, int data) {
+		if (p->value >= data) {
+			if (p->leftTree != NIL)
+				insert(p->leftTree, data);
+			else {
+				Node *tmp = new Node();
+				tmp->value = data;
+				tmp->leftTree = tmp->rightTree = NIL;
+				tmp->parent = p;
+				p->leftTree = tmp;
+				insert_case(tmp);
+			}
+		}
+		else {
+			if (p->rightTree != NIL)
+				insert(p->rightTree, data);
+			else {
+				Node *tmp = new Node();
+				tmp->value = data;
+				tmp->leftTree = tmp->rightTree = NIL;
+				tmp->parent = p;
+				p->rightTree = tmp;
+				insert_case(tmp);
+			}
+		}
+	}
+
+	void insert_case(Node *p) {
+		if (p->parent == NULL) {
+			root = p;
+			p->color = BLACK;
+			return;
+		}
+		if (p->parent->color == RED) {
+			if (p->uncle()->color == RED) {
+				p->parent->color = p->uncle()->color = BLACK;
+				p->grandparent()->color = RED;
+				insert_case(p->grandparent());
+			}
+			else {
+				if (p->parent->rightTree == p && p->grandparent()->leftTree == p->parent) {
+					rotate_left(p);
+					rotate_right(p);
+					p->color = BLACK;
+					p->leftTree->color = p->rightTree->color = RED;
+				}
+				else if (p->parent->leftTree == p && p->grandparent()->rightTree == p->parent) {
+					rotate_right(p);
+					rotate_left(p);
+					p->color = BLACK;
+					p->leftTree->color = p->rightTree->color = RED;
+				}
+				else if (p->parent->leftTree == p && p->grandparent()->leftTree == p->parent) {
+					p->parent->color = BLACK;
+					p->grandparent()->color = RED;
+					rotate_right(p->parent);
+				}
+				else if (p->parent->rightTree == p && p->grandparent()->rightTree == p->parent) {
+					p->parent->color = BLACK;
+					p->grandparent()->color = RED;
+					rotate_left(p->parent);
+				}
+			}
+		}
+	}
+
+	void DeleteTree(Node *p) {
+		if (!p || p == NIL) {
+			return;
+		}
+		DeleteTree(p->leftTree);
+		DeleteTree(p->rightTree);
+		delete p;
+	}
+public:
+
+	bst() {
+		NIL = new Node();
+		NIL->color = BLACK;
+		root = NULL;
+	}
+
+	~bst() {
+		if (root)
+			DeleteTree(root);
+		delete NIL;
+	}
+
+	void inorder() {
+		if (root == NULL)
+			return;
+		inorder(root);
+		cout << endl;
+	}
+
+	void insert(int x) {
+		if (root == NULL) {
+			root = new Node();
+			root->color = BLACK;
+			root->leftTree = root->rightTree = NIL;
+			root->value = x;
+		}
+		else {
+			insert(root, x);
+		}
+	}
+
+	bool delete_value(int data) {
+		return delete_child(root, data);
+	}
+private:
+	Node *root, *NIL;
+};
+
+int main()
+{
+	cout << ""---【红黑树】---"" << endl;
+	// 创建红黑树
+	bst tree;
+
+	// 插入元素
+	tree.insert(2);
+	tree.insert(9);
+	tree.insert(-10);
+	tree.insert(0);
+	tree.insert(33);
+	tree.insert(-19);
+
+	// 顺序打印红黑树
+	cout << ""插入元素后的红黑树："" << endl;
+	tree.inorder();
+
+	// 删除元素
+	tree.delete_value(2);
+
+	// 顺序打印红黑树
+	cout << ""删除元素 2 后的红黑树："" << endl;
+	tree.inorder();
+
+	// 析构
+	tree.~bst();
+
+	getchar();
+	return 0;
+}
+",human
+C++,"#ifndef SIMDJSON_SRC_LSX_CPP
+#define SIMDJSON_SRC_LSX_CPP
+
+#ifndef SIMDJSON_CONDITIONAL_INCLUDE
+#include <base.h>
+#endif // SIMDJSON_CONDITIONAL_INCLUDE
+
+#include <simdjson/lsx.h>
+#include <simdjson/lsx/implementation.h>
+
+#include <simdjson/lsx/begin.h>
+#include <generic/amalgamated.h>
+#include <generic/stage1/amalgamated.h>
+#include <generic/stage2/amalgamated.h>
+
+//
+// Stage 1
+//
+namespace simdjson {
+namespace lsx {
+
+simdjson_warn_unused error_code implementation::create_dom_parser_implementation(
+  size_t capacity,
+  size_t max_depth,
+  std::unique_ptr<internal::dom_parser_implementation>& dst
+) const noexcept {
+  dst.reset( new (std::nothrow) dom_parser_implementation() );
+  if (!dst) { return MEMALLOC; }
+  if (auto err = dst->set_capacity(capacity))
+    return err;
+  if (auto err = dst->set_max_depth(max_depth))
+    return err;
+  return SUCCESS;
+}
+
+namespace {
+
+using namespace simd;
+
+simdjson_inline json_character_block json_character_block::classify(const simd::simd8x64<uint8_t>& in) {
+  // Inspired by haswell.
+  // LSX use low 5 bits as index. For the 6 operators (:,[]{}), the unique-5bits is [6:2].
+  // The ASCII white-space and operators have these values: (char, hex, unique-5bits)
+  // (' ', 20, 00000) ('\t', 09, 01001) ('\n', 0A, 01010) ('\r', 0D, 01101)
+  // (',', 2C, 01011) (':', 3A, 01110) ('[', 5B, 10110) ('{', 7B, 11110) (']', 5D, 10111) ('}', 7D, 11111)
+  const simd8<uint8_t> ws_table = simd8<uint8_t>::repeat_16(
+    ' ', 0, 0, 0, 0, 0, 0, 0, 0, '\t', '\n', 0, 0, '\r', 0, 0
+  );
+  const simd8<uint8_t> op_table_lo = simd8<uint8_t>::repeat_16(
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ',', 0, 0, ':', 0
+  );
+  const simd8<uint8_t> op_table_hi = simd8<uint8_t>::repeat_16(
+    0, 0, 0, 0, 0, 0, '[', ']', 0, 0, 0, 0, 0, 0, '{', '}'
+  );
+  uint64_t ws = in.eq({
+    in.chunks[0].lookup_16(ws_table),
+    in.chunks[1].lookup_16(ws_table),
+    in.chunks[2].lookup_16(ws_table),
+    in.chunks[3].lookup_16(ws_table)
+  });
+  uint64_t op = in.eq({
+    __lsx_vshuf_b(op_table_hi, op_table_lo, in.chunks[0].shr<2>()),
+    __lsx_vshuf_b(op_table_hi, op_table_lo, in.chunks[1].shr<2>()),
+    __lsx_vshuf_b(op_table_hi, op_table_lo, in.chunks[2].shr<2>()),
+    __lsx_vshuf_b(op_table_hi, op_table_lo, in.chunks[3].shr<2>())
+  });
+
+  return { ws, op };
+}
+
+simdjson_inline bool is_ascii(const simd8x64<uint8_t>& input) {
+  return input.reduce_or().is_ascii();
+}
+
+simdjson_inline simd8<uint8_t> must_be_2_3_continuation(const simd8<uint8_t> prev2, const simd8<uint8_t> prev3) {
+    simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0xe0u-0x80); // Only 111_____ will be >= 0x80
+    simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0xf0u-0x80); // Only 1111____ will be >= 0x80
+    return is_third_byte | is_fourth_byte;
+}
+
+} // unnamed namespace
+} // namespace lsx
+} // namespace simdjson
+
+//
+// Stage 2
+//
+
+//
+// Implementation-specific overrides
+//
+namespace simdjson {
+namespace lsx {
+
+simdjson_warn_unused error_code implementation::minify(const uint8_t *buf, size_t len, uint8_t *dst, size_t &dst_len) const noexcept {
+  return lsx::stage1::json_minifier::minify<64>(buf, len, dst, dst_len);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::stage1(const uint8_t *_buf, size_t _len, stage1_mode streaming) noexcept {
+  this->buf = _buf;
+  this->len = _len;
+  return lsx::stage1::json_structural_indexer::index<64>(buf, len, *this, streaming);
+}
+
+simdjson_warn_unused bool implementation::validate_utf8(const char *buf, size_t len) const noexcept {
+  return lsx::stage1::generic_validate_utf8(buf,len);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::stage2(dom::document &_doc) noexcept {
+  return stage2::tape_builder::parse_document<false>(*this, _doc);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::document &_doc) noexcept {
+  return stage2::tape_builder::parse_document<true>(*this, _doc);
+}
+
+SIMDJSON_NO_SANITIZE_MEMORY
+simdjson_warn_unused uint8_t *dom_parser_implementation::parse_string(const uint8_t *src, uint8_t *dst, bool allow_replacement) const noexcept {
+  return lsx::stringparsing::parse_string(src, dst, allow_replacement);
+}
+
+simdjson_warn_unused uint8_t *dom_parser_implementation::parse_wobbly_string(const uint8_t *src, uint8_t *dst) const noexcept {
+  return lsx::stringparsing::parse_wobbly_string(src, dst);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
+  auto error = stage1(_buf, _len, stage1_mode::regular);
+  if (error) { return error; }
+  return stage2(_doc);
+}
+
+} // namespace lsx
+} // namespace simdjson
+
+#include <simdjson/lsx/end.h>
+
+#endif // SIMDJSON_SRC_LSX_CPP
+",human
+PHP,"<?php
+
+/*
+ * Created by: Ramy-Badr-Ahmed (https://github.com/Ramy-Badr-Ahmed) in Pull Request #162 and #172
+ * https://github.com/TheAlgorithms/PHP/pull/162
+ * https://github.com/TheAlgorithms/PHP/pull/172
+ *
+ * Please mention me (@Ramy-Badr-Ahmed) in any issue or pull request addressing bugs/corrections to this file.
+ * Thank you!
+ */
+
+namespace DataStructures;
+
+require_once __DIR__ . '/../../DataStructures/Trie/Trie.php';
+require_once __DIR__ . '/../../DataStructures/Trie/TrieNode.php';
+
+use DataStructures\Trie\Trie;
+use DataStructures\Trie\TrieNode;
+use PHPUnit\Framework\TestCase;
+
+class TrieTest extends TestCase
+{
+    private Trie $trie;
+
+    protected function setUp(): void
+    {
+        $this->trie = new Trie();
+    }
+
+    /**
+     * Test insertion and search functionality of the Trie.
+    */
+    public function testInsertAndSearch()
+    {
+        $this->trie->insert('the');
+        $this->trie->insert('universe');
+        $this->trie->insert('is');
+        $this->trie->insert('vast');
+
+        $this->assertTrue($this->trie->search('the'), 'Expected ""the"" to be found in the Trie.');
+        $this->assertTrue($this->trie->search('universe'), 'Expected ""universe"" to be found in the Trie.');
+        $this->assertTrue($this->trie->search('is'), 'Expected ""is"" to be found in the Trie.');
+        $this->assertTrue($this->trie->search('vast'), 'Expected ""vast"" to be found in the Trie.');
+        $this->assertFalse(
+            $this->trie->search('the universe'),
+            'Expected ""the universe"" not to be found in the Trie.'
+        );
+    }
+
+    /**
+     * Test insertion and search functionality with mixed case words.
+     */
+    public function testInsertAndSearchMixedCase()
+    {
+        $this->trie->insert('Apple');
+        $this->trie->insert('aPPle');
+        $this->assertTrue($this->trie->search('apple'), 'Expected ""apple"" to be found in the Trie.');
+        $this->assertTrue($this->trie->search('APPLE'), 'Expected ""APPLE"" to be found in the Trie.');
+    }
+
+    /**
+     * Test insertion and search functionality with special characters.
+     */
+    public function testInsertAndSearchWithSpecialCharacters()
+    {
+        $this->trie->insert('hello123');
+        $this->trie->insert('user@domain.com');
+        $this->assertTrue($this->trie->search('hello123'), 'Expected ""hello123"" to be found in the Trie.');
+        $this->assertTrue(
+            $this->trie->search('UseR@domain.CoM'),
+            'Expected ""user@domain.com"" to be found in the Trie.'
+        );
+        $this->assertTrue(
+            $this->trie->search('HELLO123'),
+            'Expected ""HELLO123"" not to be found in the Trie (case-sensitive).'
+        );
+    }
+
+    /**
+     * Test insertion and search functionality with long strings.
+     */
+    public function testInsertAndSearchLongStrings()
+    {
+        $longString = str_repeat('a', 1000);
+        $this->trie->insert($longString);
+        $this->assertTrue($this->trie->search($longString), 'Expected the long string to be found in the Trie.');
+    }
+
+    /**
+     * Test the startsWith functionality of the Trie.
+     */
+    public function testStartsWith()
+    {
+        $this->trie->insert('hello');
+        $this->assertEquals(['hello'], $this->trie->startsWith('he'), 'Expected words starting with ""he"" to be found.');
+        $this->assertEquals(
+            ['hello'],
+            $this->trie->startsWith('hello'),
+            'Expected words starting with ""hello"" to be found.'
+        );
+        $this->assertEquals(
+            [],
+            $this->trie->startsWith('world'),
+            'Expected no words starting with ""world"" to be found.'
+        );
+    }
+
+    /**
+     * Test startsWith functionality with mixed case prefixes.
+     */
+    public function testStartsWithMixedCase()
+    {
+        $this->trie->insert('PrefixMatch');
+        $this->trie->insert('PreFixTesting');
+        $this->assertEquals(
+            ['prefixmatch', 'prefixtesting'],
+            $this->trie->startsWith('prefix'),
+            'Expected words starting with ""prefix"" to be found in the Trie (case-insensitive).'
+        );
+
+        $this->assertEquals(
+            ['prefixmatch', 'prefixtesting'],
+            $this->trie->startsWith('PREFIX'),
+            'Expected words starting with ""PREFIX"" to be found in the Trie (case-insensitive).'
+        );
+    }
+
+    /**
+     * Test deletion of existing words from the Trie.
+     */
+    public function testDelete()
+    {
+        $this->trie->insert('the');
+        $this->trie->insert('universe');
+        $this->trie->insert('is');
+        $this->trie->insert('vast');
+        $this->trie->insert('big');
+        $this->trie->insert('rather');
+
+        // Test deleting an existing word
+        $this->trie->delete('the');
+        $this->assertFalse($this->trie->search('the'), 'Expected ""the"" not to be found after deletion.');
+
+        // Test that other words are still present
+        $this->assertTrue($this->trie->search('universe'), 'Expected ""universe"" to be found.');
+        $this->assertTrue($this->trie->search('is'), 'Expected ""is"" to be found.');
+        $this->assertTrue($this->trie->search('vast'), 'Expected ""vast"" to be found.');
+        $this->assertTrue($this->trie->search('big'), 'Expected ""big"" to be found.');
+        $this->assertTrue($this->trie->search('rather'), 'Expected ""rather"" to be found.');
+    }
+
+    /**
+     * Test deletion of mixed case words from the Trie.
+     */
+    public function testDeleteMixedCase()
+    {
+        $this->trie->insert('MixedCase');
+        $this->assertTrue($this->trie->search('mixedcase'), 'Expected ""mixedcase"" to be found before deletion.');
+
+        $this->trie->delete('MIXEDCASE');
+        $this->assertFalse(
+            $this->trie->search('MixedCase'),
+            'Expected ""MixedCase"" not to be found after deletion (case-insensitive).'
+        );
+    }
+
+    /**
+     * Test deletion of words with special characters.
+     */
+    public function testDeleteWithSpecialCharacters()
+    {
+        $this->trie->insert('spec!@l#chars');
+        $this->assertTrue(
+            $this->trie->search('spec!@l#chars'),
+            'Expected ""spec!@l#chars"" to be found before deletion.'
+        );
+
+        $this->trie->delete('SPEC!@L#CHARS');
+        $this->assertFalse(
+            $this->trie->search('spec!@l#chars'),
+            'Expected ""spec!@l#chars"" not to be found after deletion.'
+        );
+    }
+
+    /**
+     * Test deletion of a non-existent word from the Trie.
+     */
+    public function testDeleteNonExistentWord()
+    {
+        $this->trie->delete('nonexistent');
+        $this->assertFalse($this->trie->search('nonexistent'), 'Expected ""nonexistent"" to not be found.');
+    }
+
+    /**
+     * Test traversal of the Trie and retrieval of words.
+     */
+    public function testTraverseTrieNode()
+    {
+        $this->trie->insert('hello');
+        $this->trie->insert('helium');
+        $this->trie->insert('helicopter');
+
+        $words = $this->trie->getWords();
+        $this->assertContains('hello', $words, 'Expected ""hello"" to be found in the Trie.');
+        $this->assertContains('helium', $words, 'Expected ""helium"" to be found in the Trie.');
+        $this->assertContains('helicopter', $words, 'Expected ""helicopter"" to be found in the Trie.');
+        $this->assertCount(3, $words, 'Expected 3 words in the Trie.');
+    }
+
+    /**
+     * Test behavior of an empty Trie.
+     */
+    public function testEmptyTrie()
+    {
+        $this->assertEquals([], $this->trie->getWords(), 'Expected an empty Trie to return an empty array.');
+    }
+
+    /**
+     * Test retrieval of words from the Trie.
+     */
+    public function testGetWords()
+    {
+        $this->trie->insert('apple');
+        $this->trie->insert('app');
+        $this->trie->insert('applet');
+
+        $words = $this->trie->getWords();
+        $this->assertContains('apple', $words, 'Expected ""apple"" to be found in the Trie.');
+        $this->assertContains('app', $words, 'Expected ""app"" to be found in the Trie.');
+        $this->assertContains('applet', $words, 'Expected ""applet"" to be found in the Trie.');
+        $this->assertCount(3, $words, 'Expected 3 words in the Trie.');
+    }
+
+    /**
+     * Test insertion of an empty string into the Trie.
+     */
+    public function testInsertEmptyString()
+    {
+        $this->trie->insert('');
+        $this->assertTrue($this->trie->search(''), 'Expected empty string to be found in the Trie.');
+    }
+
+    /**
+     * Test deletion of an empty string from the Trie.
+     */
+    public function testDeleteEmptyString()
+    {
+        $this->trie->insert('');
+        $this->trie->delete('');
+        $this->assertFalse($this->trie->search(''), 'Expected empty string not to be found after deletion.');
+    }
+
+    /**
+     * Test the startsWith functionality with a common prefix.
+     */
+    public function testStartsWithWithCommonPrefix()
+    {
+        $this->trie->insert('trie');
+        $this->trie->insert('tried');
+        $this->trie->insert('trier');
+
+        $words = $this->trie->startsWith('tri');
+        $this->assertContains('trie', $words, 'Expected ""trie"" to be found with prefix ""tri"".');
+        $this->assertContains('tried', $words, 'Expected ""tried"" to be found with prefix ""tri"".');
+        $this->assertContains('trier', $words, 'Expected ""trier"" to be found with prefix ""tri"".');
+        $this->assertCount(3, $words, 'Expected 3 words with prefix ""tri"".');
+    }
+
+    /**
+     * Test retrieval of the root node of the Trie.
+     */
+    public function testGetRoot()
+    {
+        $root = $this->trie->getRoot();
+        $this->assertInstanceOf(TrieNode::class, $root, 'Expected root to be an instance of TrieNode.');
+        $this->assertFalse($root->isEndOfWord, 'Expected the root node not to be the end of a word.');
+        $this->assertCount(0, $root->children, 'Expected the root node to have no children initially.');
+    }
+
+    /**
+     * Test retrieval of the root node after populating the Trie with words.
+     */
+    public function testGetRootAfterPopulation()
+    {
+        $this->trie->insert('TheAlgorithms');
+        $this->trie->insert('PHP');
+        $this->trie->insert('DSA');
+
+        $root = $this->trie->getRoot();
+
+        $this->assertInstanceOf(TrieNode::class, $root, 'Expected root to be an instance of TrieNode.');
+
+        // Assert that the root node is not marked as the end of a word
+        $this->assertFalse($root->isEndOfWord, 'Expected the root node not to be the end of a word.');
+
+        // Assert that the root node has children corresponding to the inserted words
+        $this->assertCount(3, $root->children, 'Expected the root node to have 3 children after inserting words.');
+        $this->assertTrue($root->hasChild('t'), 'Expected root to have a child for ""t"".');
+        $this->assertTrue($root->hasChild('p'), 'Expected root to have a child for ""p"".');
+        $this->assertTrue($root->hasChild('D'), 'Expected root to have a child for ""D"".');
+    }
+}
+",human
+Java,"package com.thealgorithms.io;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+/**
+ * Mimics the actions of the Original buffered reader
+ * implements other actions, such as peek(n) to lookahead,
+ * block() to read a chunk of size {BUFFER SIZE}
+ * <p>
+ * Author: Kumaraswamy B.G (Xoma Dev)
+ */
+public class BufferedReader {
+
+    private static final int DEFAULT_BUFFER_SIZE = 5;
+
+    /**
+     * The maximum number of bytes the buffer can hold.
+     * Value is changed when encountered Eof to not
+     * cause overflow read of 0 bytes
+     */
+
+    private int bufferSize;
+    private final byte[] buffer;
+
+    /**
+     * posRead -> indicates the next byte to read
+     */
+    private int posRead = 0;
+    private int bufferPos = 0;
+
+    private boolean foundEof = false;
+
+    private InputStream input;
+
+    public BufferedReader(byte[] input) throws IOException {
+        this(new ByteArrayInputStream(input));
+    }
+
+    public BufferedReader(InputStream input) throws IOException {
+        this(input, DEFAULT_BUFFER_SIZE);
+    }
+
+    public BufferedReader(InputStream input, int bufferSize) throws IOException {
+        this.input = input;
+        if (input.available() == -1) {
+            throw new IOException(""Empty or already closed stream provided"");
+        }
+
+        this.bufferSize = bufferSize;
+        buffer = new byte[bufferSize];
+    }
+
+    /**
+     * Reads a single byte from the stream
+     */
+    public int read() throws IOException {
+        if (needsRefill()) {
+            if (foundEof) {
+                return -1;
+            }
+            // the buffer is empty, or the buffer has
+            // been completely read and needs to be refilled
+            refill();
+        }
+        return buffer[posRead++] & 0xff; // read and un-sign it
+    }
+
+    /**
+     * Number of bytes not yet been read
+     */
+
+    public int available() throws IOException {
+        int available = input.available();
+        if (needsRefill()) {
+            // since the block is already empty,
+            // we have no responsibility yet
+            return available;
+        }
+        return bufferPos - posRead + available;
+    }
+
+    /**
+     * Returns the next character
+     */
+
+    public int peek() throws IOException {
+        return peek(1);
+    }
+
+    /**
+     * Peeks and returns a value located at next {n}
+     */
+
+    public int peek(int n) throws IOException {
+        int available = available();
+        if (n >= available) {
+            throw new IOException(""Out of range, available %d, but trying with %d"".formatted(available, n));
+        }
+        pushRefreshData();
+
+        if (n >= bufferSize) {
+            throw new IllegalAccessError(""Cannot peek %s, maximum upto %s (Buffer Limit)"".formatted(n, bufferSize));
+        }
+        return buffer[n];
+    }
+
+    /**
+     * Removes the already read bytes from the buffer
+     * in-order to make space for new bytes to be filled up.
+     * <p>
+     * This may also do the job to read first time data (the whole buffer is empty)
+     */
+
+    private void pushRefreshData() throws IOException {
+        for (int i = posRead, j = 0; i < bufferSize; i++, j++) {
+            buffer[j] = buffer[i];
+        }
+
+        bufferPos -= posRead;
+        posRead = 0;
+
+        // fill out the spaces that we've
+        // emptied
+        justRefill();
+    }
+
+    /**
+     * Reads one complete block of size {bufferSize}
+     * if found eof, the total length of an array will
+     * be that of what's available
+     *
+     * @return a completed block
+     */
+    public byte[] readBlock() throws IOException {
+        pushRefreshData();
+
+        byte[] cloned = new byte[bufferSize];
+        // arraycopy() function is better than clone()
+        if (bufferPos >= 0) {
+            System.arraycopy(buffer, 0, cloned, 0,
+                // important to note that, bufferSize does not stay constant
+                // once the class is defined. See justRefill() function
+                bufferSize);
+        }
+        // we assume that already a chunk
+        // has been read
+        refill();
+        return cloned;
+    }
+
+    private boolean needsRefill() {
+        return bufferPos == 0 || posRead == bufferSize;
+    }
+
+    private void refill() throws IOException {
+        posRead = 0;
+        bufferPos = 0;
+        justRefill();
+    }
+
+    private void justRefill() throws IOException {
+        assertStreamOpen();
+
+        // try to fill in the maximum we can until
+        // we reach EOF
+        while (bufferPos < bufferSize) {
+            int read = input.read();
+            if (read == -1) {
+                // reached end-of-file, no more data left
+                // to be read
+                foundEof = true;
+                // rewrite the BUFFER_SIZE, to know that we've reached
+                // EOF when requested refill
+                bufferSize = bufferPos;
+            }
+            buffer[bufferPos++] = (byte) read;
+        }
+    }
+
+    private void assertStreamOpen() {
+        if (input == null) {
+            throw new IllegalStateException(""Input Stream already closed!"");
+        }
+    }
+
+    public void close() throws IOException {
+        if (input != null) {
+            try {
+                input.close();
+            } finally {
+                input = null;
+            }
+        }
+    }
+}
+",human
+Java,"package tetris;
+
+import java.awt.FlowLayout;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+
+/**
+ * 框架类
+ * @author Leslie Leung
+ */
+public class TetrisFrame extends JFrame {
+	private TetrisPane tp;	//俄罗斯方块主游戏场景类
+	private JLabel mention;		//游戏的提示信息
+	
+	/**
+	 * 构造方法
+	 */
+	public TetrisFrame() {
+		setSize(550, 600);	//设置窗体大小
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setLocationRelativeTo(null);	//设置窗体于屏幕中央
+		setTitle(""Tetris"");		//设置标题为Tetris
+		setResizable(false);		//不允许窗体缩放
+		setLayout(new FlowLayout());	//设置布局管理器
+		
+		tp = new TetrisPane();	//新建场景类对象
+		mention = new JLabel(""按A键逆时针转，按D顺时针转，按方向键控制向左、向右和向下的运动，按空格键硬下落"");
+		
+		add(mention);		//把标签添加到主框架中
+		add(tp);		//把游戏主场景面板添加到主框架中
+		
+		/* 注册键盘事件 */
+		addKeyListener(tp.getInnerInstanceOfKeyControl());
+		tp.addKeyListener(tp.getInnerInstanceOfKeyControl());
+		
+		setVisible(true);
+	}
+	
+	public static void main(String[] args) {
+		new TetrisFrame();
+	}
+}
+",human
+Go,"// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Counter (CTR) mode.
+
+// CTR converts a block cipher into a stream cipher by
+// repeatedly encrypting an incrementing counter and
+// xoring the resulting stream of data with the input.
+
+// See NIST SP 800-38A, pp 13-15
+
+package cipher
+
+import (
+	""bytes""
+	""crypto/internal/fips140/aes""
+	""crypto/internal/fips140/alias""
+	""crypto/internal/fips140only""
+	""crypto/subtle""
+)
+
+type ctr struct {
+	b       Block
+	ctr     []byte
+	out     []byte
+	outUsed int
+}
+
+const streamBufferSize = 512
+
+// ctrAble is an interface implemented by ciphers that have a specific optimized
+// implementation of CTR. crypto/aes doesn't use this anymore, and we'd like to
+// eventually remove it.
+type ctrAble interface {
+	NewCTR(iv []byte) Stream
+}
+
+// NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
+// counter mode. The length of iv must be the same as the [Block]'s block size.
+func NewCTR(block Block, iv []byte) Stream {
+	if block, ok := block.(*aes.Block); ok {
+		return aesCtrWrapper{aes.NewCTR(block, iv)}
+	}
+	if fips140only.Enabled {
+		panic(""crypto/cipher: use of CTR with non-AES ciphers is not allowed in FIPS 140-only mode"")
+	}
+	if ctr, ok := block.(ctrAble); ok {
+		return ctr.NewCTR(iv)
+	}
+	if len(iv) != block.BlockSize() {
+		panic(""cipher.NewCTR: IV length must equal block size"")
+	}
+	bufSize := streamBufferSize
+	if bufSize < block.BlockSize() {
+		bufSize = block.BlockSize()
+	}
+	return &ctr{
+		b:       block,
+		ctr:     bytes.Clone(iv),
+		out:     make([]byte, 0, bufSize),
+		outUsed: 0,
+	}
+}
+
+// aesCtrWrapper hides extra methods from aes.CTR.
+type aesCtrWrapper struct {
+	c *aes.CTR
+}
+
+func (x aesCtrWrapper) XORKeyStream(dst, src []byte) {
+	x.c.XORKeyStream(dst, src)
+}
+
+func (x *ctr) refill() {
+	remain := len(x.out) - x.outUsed
+	copy(x.out, x.out[x.outUsed:])
+	x.out = x.out[:cap(x.out)]
+	bs := x.b.BlockSize()
+	for remain <= len(x.out)-bs {
+		x.b.Encrypt(x.out[remain:], x.ctr)
+		remain += bs
+
+		// Increment counter
+		for i := len(x.ctr) - 1; i >= 0; i-- {
+			x.ctr[i]++
+			if x.ctr[i] != 0 {
+				break
+			}
+		}
+	}
+	x.out = x.out[:remain]
+	x.outUsed = 0
+}
+
+func (x *ctr) XORKeyStream(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic(""crypto/cipher: output smaller than input"")
+	}
+	if alias.InexactOverlap(dst[:len(src)], src) {
+		panic(""crypto/cipher: invalid buffer overlap"")
+	}
+	if _, ok := x.b.(*aes.Block); ok {
+		panic(""crypto/cipher: internal error: generic CTR used with AES"")
+	}
+	for len(src) > 0 {
+		if x.outUsed >= len(x.out)-x.b.BlockSize() {
+			x.refill()
+		}
+		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
+		dst = dst[n:]
+		src = src[n:]
+		x.outUsed += n
+	}
+}
+",human
+Go,"// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package elliptic
+
+import (
+	""crypto/internal/fips140/nistec""
+	""errors""
+	""math/big""
+)
+
+var p224 = &nistCurve[*nistec.P224Point]{
+	newPoint: nistec.NewP224Point,
+}
+
+func initP224() {
+	p224.params = &CurveParams{
+		Name:    ""P-224"",
+		BitSize: 224,
+		// SP 800-186, Section 3.2.1.2
+		P:  bigFromDecimal(""26959946667150639794667015087019630673557916260026308143510066298881""),
+		N:  bigFromDecimal(""26959946667150639794667015087019625940457807714424391721682722368061""),
+		B:  bigFromHex(""b4050a850c04b3abf54132565044b0b7d7bfd8ba270b39432355ffb4""),
+		Gx: bigFromHex(""b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21""),
+		Gy: bigFromHex(""bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34""),
+	}
+}
+
+type p256Curve struct {
+	nistCurve[*nistec.P256Point]
+}
+
+var p256 = &p256Curve{nistCurve[*nistec.P256Point]{
+	newPoint: nistec.NewP256Point,
+}}
+
+func initP256() {
+	p256.params = &CurveParams{
+		Name:    ""P-256"",
+		BitSize: 256,
+		// SP 800-186, Section 3.2.1.3
+		P:  bigFromDecimal(""115792089210356248762697446949407573530086143415290314195533631308867097853951""),
+		N:  bigFromDecimal(""115792089210356248762697446949407573529996955224135760342422259061068512044369""),
+		B:  bigFromHex(""5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b""),
+		Gx: bigFromHex(""6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296""),
+		Gy: bigFromHex(""4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5""),
+	}
+}
+
+var p384 = &nistCurve[*nistec.P384Point]{
+	newPoint: nistec.NewP384Point,
+}
+
+func initP384() {
+	p384.params = &CurveParams{
+		Name:    ""P-384"",
+		BitSize: 384,
+		// SP 800-186, Section 3.2.1.4
+		P: bigFromDecimal(""394020061963944792122790401001436138050797392704654"" +
+			""46667948293404245721771496870329047266088258938001861606973112319""),
+		N: bigFromDecimal(""394020061963944792122790401001436138050797392704654"" +
+			""46667946905279627659399113263569398956308152294913554433653942643""),
+		B: bigFromHex(""b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088"" +
+			""f5013875ac656398d8a2ed19d2a85c8edd3ec2aef""),
+		Gx: bigFromHex(""aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741"" +
+			""e082542a385502f25dbf55296c3a545e3872760ab7""),
+		Gy: bigFromHex(""3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da31"" +
+			""13b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f""),
+	}
+}
+
+var p521 = &nistCurve[*nistec.P521Point]{
+	newPoint: nistec.NewP521Point,
+}
+
+func initP521() {
+	p521.params = &CurveParams{
+		Name:    ""P-521"",
+		BitSize: 521,
+		// SP 800-186, Section 3.2.1.5
+		P: bigFromDecimal(""68647976601306097149819007990813932172694353001433"" +
+			""0540939446345918554318339765605212255964066145455497729631139148"" +
+			""0858037121987999716643812574028291115057151""),
+		N: bigFromDecimal(""68647976601306097149819007990813932172694353001433"" +
+			""0540939446345918554318339765539424505774633321719753296399637136"" +
+			""3321113864768612440380340372808892707005449""),
+		B: bigFromHex(""0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8"" +
+			""b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef"" +
+			""451fd46b503f00""),
+		Gx: bigFromHex(""00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f8"" +
+			""28af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf9"" +
+			""7e7e31c2e5bd66""),
+		Gy: bigFromHex(""011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817"" +
+			""afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088"" +
+			""be94769fd16650""),
+	}
+}
+
+// nistCurve is a Curve implementation based on a nistec Point.
+//
+// It's a wrapper that exposes the big.Int-based Curve interface and encodes the
+// legacy idiosyncrasies it requires, such as invalid and infinity point
+// handling.
+//
+// To interact with the nistec package, points are encoded into and decoded from
+// properly formatted byte slices. All big.Int use is limited to this package.
+// Encoding and decoding is 1/1000th of the runtime of a scalar multiplication,
+// so the overhead is acceptable.
+type nistCurve[Point nistPoint[Point]] struct {
+	newPoint func() Point
+	params   *CurveParams
+}
+
+// nistPoint is a generic constraint for the nistec Point types.
+type nistPoint[T any] interface {
+	Bytes() []byte
+	SetBytes([]byte) (T, error)
+	Add(T, T) T
+	Double(T) T
+	ScalarMult(T, []byte) (T, error)
+	ScalarBaseMult([]byte) (T, error)
+}
+
+func (curve *nistCurve[Point]) Params() *CurveParams {
+	return curve.params
+}
+
+func (curve *nistCurve[Point]) IsOnCurve(x, y *big.Int) bool {
+	// IsOnCurve is documented to reject (0, 0), the conventional point at
+	// infinity, which however is accepted by pointFromAffine.
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return false
+	}
+	_, err := curve.pointFromAffine(x, y)
+	return err == nil
+}
+
+func (curve *nistCurve[Point]) pointFromAffine(x, y *big.Int) (p Point, err error) {
+	// (0, 0) is by convention the point at infinity, which can't be represented
+	// in affine coordinates. See Issue 37294.
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return curve.newPoint(), nil
+	}
+	// Reject values that would not get correctly encoded.
+	if x.Sign() < 0 || y.Sign() < 0 {
+		return p, errors.New(""negative coordinate"")
+	}
+	if x.BitLen() > curve.params.BitSize || y.BitLen() > curve.params.BitSize {
+		return p, errors.New(""overflowing coordinate"")
+	}
+	// Encode the coordinates and let SetBytes reject invalid points.
+	byteLen := (curve.params.BitSize + 7) / 8
+	buf := make([]byte, 1+2*byteLen)
+	buf[0] = 4 // uncompressed point
+	x.FillBytes(buf[1 : 1+byteLen])
+	y.FillBytes(buf[1+byteLen : 1+2*byteLen])
+	return curve.newPoint().SetBytes(buf)
+}
+
+func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
+	out := p.Bytes()
+	if len(out) == 1 && out[0] == 0 {
+		// This is the encoding of the point at infinity, which the affine
+		// coordinates API represents as (0, 0) by convention.
+		return new(big.Int), new(big.Int)
+	}
+	byteLen := (curve.params.BitSize + 7) / 8
+	x = new(big.Int).SetBytes(out[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(out[1+byteLen:])
+	return x, y
+}
+
+func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+	p1, err := curve.pointFromAffine(x1, y1)
+	if err != nil {
+		panic(""crypto/elliptic: Add was called on an invalid point"")
+	}
+	p2, err := curve.pointFromAffine(x2, y2)
+	if err != nil {
+		panic(""crypto/elliptic: Add was called on an invalid point"")
+	}
+	return curve.pointToAffine(p1.Add(p1, p2))
+}
+
+func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+	p, err := curve.pointFromAffine(x1, y1)
+	if err != nil {
+		panic(""crypto/elliptic: Double was called on an invalid point"")
+	}
+	return curve.pointToAffine(p.Double(p))
+}
+
+// normalizeScalar brings the scalar within the byte size of the order of the
+// curve, as expected by the nistec scalar multiplication functions.
+func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
+	byteSize := (curve.params.N.BitLen() + 7) / 8
+	if len(scalar) == byteSize {
+		return scalar
+	}
+	s := new(big.Int).SetBytes(scalar)
+	if len(scalar) > byteSize {
+		s.Mod(s, curve.params.N)
+	}
+	out := make([]byte, byteSize)
+	return s.FillBytes(out)
+}
+
+func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
+	p, err := curve.pointFromAffine(Bx, By)
+	if err != nil {
+		panic(""crypto/elliptic: ScalarMult was called on an invalid point"")
+	}
+	scalar = curve.normalizeScalar(scalar)
+	p, err = p.ScalarMult(p, scalar)
+	if err != nil {
+		panic(""crypto/elliptic: nistec rejected normalized scalar"")
+	}
+	return curve.pointToAffine(p)
+}
+
+func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
+	scalar = curve.normalizeScalar(scalar)
+	p, err := curve.newPoint().ScalarBaseMult(scalar)
+	if err != nil {
+		panic(""crypto/elliptic: nistec rejected normalized scalar"")
+	}
+	return curve.pointToAffine(p)
+}
+
+// CombinedMult returns [s1]G + [s2]P where G is the generator. It's used
+// through an interface upgrade in crypto/ecdsa.
+func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int) {
+	s1 = curve.normalizeScalar(s1)
+	q, err := curve.newPoint().ScalarBaseMult(s1)
+	if err != nil {
+		panic(""crypto/elliptic: nistec rejected normalized scalar"")
+	}
+	p, err := curve.pointFromAffine(Px, Py)
+	if err != nil {
+		panic(""crypto/elliptic: CombinedMult was called on an invalid point"")
+	}
+	s2 = curve.normalizeScalar(s2)
+	p, err = p.ScalarMult(p, s2)
+	if err != nil {
+		panic(""crypto/elliptic: nistec rejected normalized scalar"")
+	}
+	return curve.pointToAffine(p.Add(p, q))
+}
+
+func (curve *nistCurve[Point]) Unmarshal(data []byte) (x, y *big.Int) {
+	if len(data) == 0 || data[0] != 4 {
+		return nil, nil
+	}
+	// Use SetBytes to check that data encodes a valid point.
+	_, err := curve.newPoint().SetBytes(data)
+	if err != nil {
+		return nil, nil
+	}
+	// We don't use pointToAffine because it involves an expensive field
+	// inversion to convert from Jacobian to affine coordinates, which we
+	// already have.
+	byteLen := (curve.params.BitSize + 7) / 8
+	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(data[1+byteLen:])
+	return x, y
+}
+
+func (curve *nistCurve[Point]) UnmarshalCompressed(data []byte) (x, y *big.Int) {
+	if len(data) == 0 || (data[0] != 2 && data[0] != 3) {
+		return nil, nil
+	}
+	p, err := curve.newPoint().SetBytes(data)
+	if err != nil {
+		return nil, nil
+	}
+	return curve.pointToAffine(p)
+}
+
+func bigFromDecimal(s string) *big.Int {
+	b, ok := new(big.Int).SetString(s, 10)
+	if !ok {
+		panic(""crypto/elliptic: internal error: invalid encoding"")
+	}
+	return b
+}
+
+func bigFromHex(s string) *big.Int {
+	b, ok := new(big.Int).SetString(s, 16)
+	if !ok {
+		panic(""crypto/elliptic: internal error: invalid encoding"")
+	}
+	return b
+}
+",human
+HTML,"<!DOCTYPE html>
+<html lang=""en"">
+  <head>
+    <meta charset=""utf-8"">
+    <meta http-equiv=""X-UA-Compatible"" content=""IE=edge,chrome=1"">
+
+    <!-- Set the title of your site here -->
+    <title> HTML Patterns </title>
+
+    <meta name=""author"" content=""mrmrs"">
+    <meta name=""description"" content=""Common HTML patterns"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
+
+    <!-- Link to your stylesheet here 
+    <link rel=""stylesheet"" href=""css/i.css"">
+
+    Favicons and Touch Device Icons 
+    <link rel=""shortcut icon"" href=""favicon.ico"">
+    <link rel=""apple-touch-icon"" href=""touch-icon-iphone-precomposed.png"">
+    <link rel=""apple-touch-icon"" sizes=""72x72""   href=""touch-icon-ipad-precomposed.png"">
+    <link rel=""apple-touch-icon"" sizes=""114x114"" href=""touch-icon-iphone-retina-precomposed.png"">
+    <link rel=""apple-touch-icon"" sizes=""144x144"" href=""touch-icon-ipad-retina-precomposed.png"">
+    -->
+  </head>
+
+  <body>
+
+    <header>
+      <h1>HTML</h1>
+      <h2>Every html element in one place. Just waiting to be styled.</h2>
+    </header>
+
+
+
+    <!--
+
+    HTML - Common patterns
+
+    Add your own modules and components for easy theme styling,
+    copy the partials for building a prototype. Or just read
+    the comments to familiarize yourself with HTML.
+
+    -->
+
+    <header>
+      <a href="""" title=""Site title""><h1>Site title</h1></a>
+      <nav>
+        <ul>
+          <li> <a href=""#"" title=""Home"">Home</a> </li>
+          <li> <a href=""#"" title=""About"">About</a> </li>
+          <li> <a href=""#"" title=""Sign Up"">Sign Up</a> </li>
+          <li> <a href=""#"" title=""Contact"">Contact</a> </li>
+          <li> <a href=""#"" title=""Careers"">Careers</a> </li>
+        </ul>
+      </nav>
+    </header>
+
+    <section>
+      <h1>Headings &amp; Copy</h1>
+      <h1>First Header h1</h1>
+      <p>
+        At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis
+        praesentium voluptatum deleniti atque corrupti quos.
+      </p>
+      <h2>Second header h2</h2>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+        tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+        quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+        consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+        cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+        non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+      </p>
+      <h3>Third header h3</h3>
+      <p>
+        At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis
+        praesentium voluptatum deleniti atque corrupti quos dolores et quas
+        molestias excepturi sint occaecati cupiditate non provident, similique sunt
+        in culpa qui officia deserunt mollitia animi, id est laborum et dolorum
+        fuga. Et harum quidem rerum facilis est et expedita distinctio.
+      </p>
+      <h4>Fourth header h4</h4>
+      <p>
+        Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet,
+        consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt
+        ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima
+        veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi
+        ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit
+        qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum
+        qui dolorem eum fugiat quo voluptas nulla pariatur?""
+      </p>
+      <h5>Fifth header h5</h5>
+      <p>
+        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium
+        doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
+        veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim
+        ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia
+        consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+      </p>
+      <h6>Sixth header h6</h6>
+      <p>
+        At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis
+        praesentium voluptatum deleniti atque corrupti quos.
+      </p>
+    </section>
+    <hr />
+    <section>
+      <h1>Links</h1>
+      <a href=""#"">Sample text link</a>
+      <a href=""#"">Sample button link</a>
+    </section>
+    <hr />
+    <section>
+      <h1>Lists</h1>
+      <h2>Unordered list</h2>
+      <ul>
+        <li>Orange</li>
+        <li>Apple</li>
+        <li>Rhubarb</li>
+        <li>Rasberry</li>
+        <li>Blueberry</li>
+        <li>Cherry</li>
+      </ul>
+      <h2>Ordered list</h2>
+      <ol>
+        <li>First</li>
+        <li>Second</li>
+        <li>Third</li>
+        <li>Fourth</li>
+        <li>Fifth</li>
+        <li>Sixth</li>
+      </ol>
+      <h2>Definition list</h2>
+      <dl>
+        <dt>
+        Kick
+        </dt>
+        <dd>
+        808
+        </dd>
+        <dt>
+        Snare
+        </dt>
+        <dd>
+        909
+        </dd>
+      </dl>
+      <dl>
+        <dt> Maine </dt>
+        <dd> Augusta </dd>
+        <dt> California </dt>
+        <dd> Sacremento </dd>
+        <dt> Oregon </dt>
+        <dd> Salem </dd>
+        <dt> New York </dt>
+        <dd> Albany </dd>
+      </dl>
+      <dl>
+        <dt> Ascender </dt>
+        <dd> The part of certain lowercase letters that extends above the x-height of a font.  </dd>
+        <dt> Font </dt>
+        <dd> Traditionally, a complete set of characters for one typeface at
+        one particular type size. Often used more loosely as a synonym for
+        ""typeface"".
+        </dd>
+        <dt> Golden Section </dt>
+        <dd>
+        The ideal proportion according to the ancient Greeks. It is visualized as the
+        division of a line into two unequal segments in such a way that the ratio of the
+        smaller segment to the larger segment is equal to the ratio of the larger to the
+        whole. It is usually defined as 21:34, that is, 21/34 and 34/(21+34) both equal
+        approximately 0.618. A rectangle whose sides are of this proportion is called a
+        ""golden rectangle"". Golden rectangles can be found in the proportions of the
+        Parthenon and many medieval manuscripts.
+        </dd>
+      </dl>
+    </section>
+
+    <section>
+      <h1>Forms</h1>
+      <form>
+        <fieldset>
+          <!--
+          Every fieldset must contain a legend. IE barfs if it's not there.
+          It's no fun.
+          -->
+          <legend>Legend Example</legend>
+
+          <div>
+            <label>Text Input Label</label>
+            <input type=""text"" />
+            <p>Helper text if necessary.</p>
+          </div>
+
+          <div>
+            <label>Password</label>
+            <input type=""password"" />
+            <p>Error messages when appropriate.</p>
+          </div>
+
+          <div>
+            <label for=""first-name"">First Name</label>
+            <input type=""text"" id=""first-name"" />
+          </div>
+
+          <div>
+            <label for=""last-name"">Last Name</label>
+            <input type=""text"" id=""last-name"" />
+          </div>
+
+          <div>
+            <label for=""email"">Email</label>
+            <input type=""email"" id=""email"" />
+          </div>
+
+
+          <div>
+            <label for=""gender"">Dropdown</label>
+            <select>
+              <option>Option 1</option>
+              <option>Option 2</option>
+              <option>Option 3</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Radio Buttons</label>
+            <ul>
+              <li><label><input type=""radio"" /> Label 1</label></li>
+              <li><label><input type=""radio"" /> Label 2</label></li>
+              <li><label><input type=""radio"" /> Label 3</label></li>
+            </ul>
+          </div>
+
+          <div>
+            <label for=""url"">URL Input</label>
+            <input type=""url"" placeholder=""http://mrmrs.cc"" />
+          </div>
+
+          <div>
+            <label>Text area</label>
+            <textarea></textarea>
+          </div>
+
+          <div>
+            <label><input type=""checkbox"" /> This is a checkbox.</label>
+          </div>
+
+          <div>
+            <input type=""submit"" value=""Submit"" />
+          </div>
+
+        </fieldset>
+      </form>
+    </section>
+    <section>
+      <h1>Buttons</h1>
+      <button>A button</button>
+      <button>A button</button>
+      <button>A large button</button>
+    </section>
+    <hr />
+    <section>
+      <h1>An Example Article</h1>
+      <article>
+        <h1>Title</h1>
+        <p>
+          Lorem ipsum dolor sit amet, <b>consectetur adipisicing elit</b>, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+          quis nostrud <em>exercitation ullamco laboris nisi ut aliquip ex ea commodo
+            consequat</em>. Duis aute irure dolor in reprehenderit in voluptate velit esse
+          cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+          non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+        </p>
+        <blockquote>
+          <p>
+            This is a GREAT pull quote.
+          </p>
+          <a href=""#"">- Author</a>
+        </blockquote>
+        <p>
+          Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet,
+          consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt
+          ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima
+          veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi
+          ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit
+          qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum
+          qui dolorem eum fugiat quo voluptas nulla pariatur?""
+        </p>
+        <p>
+          At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis
+          praesentium voluptatum deleniti atque corrupti quos dolores et quas
+          molestias excepturi sint occaecati cupiditate non provident, similique sunt
+          in culpa qui officia deserunt mollitia animi, id est laborum et dolorum
+          fuga. Et harum quidem rerum facilis est et expedita distinctio.
+        </p>
+      </article>
+    </section>
+    <hr />
+
+    <section>
+      <h1>Code examples</h1>
+      <code>
+        <pre>
+      sudo ipfw pipe 1 config bw 256KByte/s
+      sudo ipfw add 1 pipe 1 src-port 3000
+    </pre>
+    </code>
+  </section>
+    <hr />
+    <section>
+      <h1>Footer</h1>
+      <footer>
+        <p>Copyright 2013. Made with love by <a href=""http://mrmrs.cc"" title=""MRMRS - Designer"">mrmrs</a>.</p>
+        <ul>
+           <li>
+             <a href=""#"">Home</a>
+           </li>
+           <li>
+             <a href=""#"">Contact</a>
+           </li>
+           <li>
+             <a href=""#"">Jobs</a>
+           </li>
+        </ul>
+        <ul>
+           <li>
+             <a href=""http://twitter.com"" title="" on Twitter"">Twitter</a>
+           </li>
+           <li>
+             <a href=""http://pinterest.com"" title="" on Pinterest"">Pinterest</a>
+           </li>
+           <li>
+             <a href=""http://instagram.com"" title="" on Instagram"">Instagram</a>
+           </li>
+           <li>
+             <a href=""http://dribbbble.com"" title="" on Dribbble"">Dribbble</a>
+           </li>
+           <li>
+             <a href=""http://github.com"" title="" on Github"">Github</a>
+           </li>
+        </ul>
+      </footer>
+    </section>
+
+  <section>
+    <h1>New hawtness</h1>
+    <progress value=""80"" max=""100"">80 %</progress>
+    <p>We are this close to the goal: <meter min=""0"" max=""1000"" value=""824"">$824</meter>.</p>
+  </section>
+
+  <section>
+    <header>
+      <h1>Random Stuff</h1>
+    </header>
+    <small>This is for things like copyright info</small>
+    <s>Content that isn't accurate or relevant anymore.</s>
+    <span>Generic span wrapper</span>
+    <abbr>HTML How to meet ladies</abbr>
+    <p>This is inline text with <sub>subscript</sub> and <sup>superscript</sup> elements.</p>
+    <p>
+      <var>f</var>(<var>x</var>) = <var>a</var><sub>0</sub> + <var>a</var><sub>1</sub><var>x</var> +
+      <var>a</var><sub>2</sub><var>x</var><sup>2</sup>, where <var>a</var><sup>2</sup> ≠ 0
+    </p>
+    <time datetime=""2013-09-07"" pubdate>07 September 2013</time>
+  </section>
+
+  <section>
+    <figure>
+      <img src=""http://placekitten.com/g/960/320"" alt=""Figure Example"">
+      <figcaption>
+        Photo of the sky at night. Original by <a href=""http://flickr.com/photos/heyitsadam/"">@mrmrs</a>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <!--
+    http://www.w3.org/html/wg/drafts/html/master/text-level-semantics.html#the-samp-element
+    -->
+    <samp>
+      <pre>
+          /Sites/html master  ☠ ☢
+          $  <kbd>ls -gto</kbd>
+
+          total 104
+          -rw-r--r--   1   10779 Jun  5 16:24 index.html
+          -rw-r--r--   1    1255 Jun  5 16:00 _config.yml
+          drwxr-xr-x  11     374 Jun  5 15:57 _site
+          -rw-r--r--   1    1597 Jun  5 14:16 README.md
+          drwxr-xr-x   5     170 Jun  5 14:15 _sass
+          -rw-r--r--   1     564 Jun  4 15:59 Rakefile
+          drwxr-xr-x   6     204 Jun  4 15:59 _includes
+          drwxr-xr-x   4     136 Jun  4 15:59 _layouts
+          drwxr-xr-x   3     102 Jun  4 15:59 _resources
+          drwxr-xr-x   3     102 Jun  4 15:59 css
+          -rw-r--r--   1    1977 Jun  4 15:59 favicon.icns
+          -rw-r--r--   1    6518 Jun  4 15:59 favicon.ico
+          -rw-r--r--   1    1250 Jun  4 15:59 touch-icon-ipad-precomposed.png
+          -rw-r--r--   1    2203 Jun  4 15:59 touch-icon-ipad-retina-precomposed.png
+          -rw-r--r--   1    1046 Jun  4 15:59 touch-icon-iphone-precomposed.png
+          -rw-r--r--   1    1779 Jun  4 15:59 touch-icon-iphone-retina-precomposed.png
+        </pre>
+      </samp>
+    </section>
+    <section>
+      <h1>Tables</h1>
+        <!--
+        From the HTML spec (http://www.w3.org/TR/html401/struct/tables.html)
+
+        TFOOT must appear before TBODY within a TABLE definition so that user agents can
+        render the foot before receiving all of the (potentially numerous) rows of data.
+        The following summarizes which tags are required and which may be omitted:
+
+        The TBODY start tag is always required except when the table contains only one
+        table body and no table head or foot sections. The TBODY end tag may always be
+        safely omitted.
+
+        The start tags for THEAD and TFOOT are required when the table head and foot sections
+        are present respectively, but the corresponding end tags may always be safely
+        omitted.
+
+        Conforming user agent parsers must obey these rules for reasons of backward
+        compatibility.
+        -->
+      <table>
+        <caption>This is a caption for a table</caption>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Date</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <td>Table footer info</td>
+          </tr>
+        </tfoot>
+        <tbody>
+          <tr>
+            <td>#999-32ac</td>
+            <td>First Name</td>
+            <td>13 May, 2013</td>
+            <td>999 Spruce Lane, Somewhere, CA 94101</td>
+          </tr>
+          <tr>
+            <td>#888-32dd</td>
+            <td>Sample Name</td>
+            <td>17 May, 1984</td>
+            <td>999 Spruce Lane, Somewhere, CA 94101</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h1>Footer</h1>
+      <footer>
+        <small>© 2014 Some company name</small>
+        <address>email@email.com</address>
+      </footer>
+    </section>
+  </body>
+</html>
+",human
+HTML,"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <title>documents used to build the HTML spec</title>
+    <style>
+        .editor {
+            background-color: skyblue;
+        }
+    </style>
+</head>
+<body>
+    <h2>A rough guide to the documents used to build the HTML specification</h2>
+
+    <p>Most of the content is generated from things in the sections directory:</p>
+
+    <dl>
+        <dt><a href=""sections/acknowledgements.include"">acknowledgements.include</a></dt>
+        <dd>The acknowledgements section</dd>
+
+        <dt><a href=""sections/attributes.include"">attributes.include</a></dt>
+        <dd>The table of HTML attributes in the index</dd>
+
+        <dt><a href=""sections/browsers.include"">browsers.include</a></dt>
+        <dd>Section 6: Loading Web Pages</dd>
+
+        <dt><a href=""sections/changes.include"">changes.include</a></dt>
+        <dd>A history of changes between drafts</dd>
+
+        <dt><a href=""sections/dom.include"">dom.include</a></dt>
+        <dd>DOM: <code>document</code> object, generic element semantics, global attributes, ARIA, …</dd>
+        <dd class=""editor"">Editor: Travis</dd>
+
+        <dt><a href=""sections/editing.include"">editing.include</a></dt>
+        <dd>Section 5: User interaction. The <code>hidden</code> attribute, activation of interactive elements, focus and focus management, <code>accesskey</code>, <code>contenteditable</code>, <code>designmode</code> and editing, drag and drop</dd>
+
+        <dt><a href=""sections/element-content-categories.include"">element-content-categories.include</a></dt>
+        <dd>The section on element content types in the index</dd>
+
+        <dt><a href=""sections/element-interfaces.include"">element-interfaces.include</a></dt>
+        <dd>A utility file that builds the table of element interfaces in the index</dd>
+
+        <dt><a href=""sections/elements.include"">elements.include</a></dt>
+        <dd>The table of elements in the index</dd>
+
+        <dt><a href=""sections/events.include"">events.include</a></dt>
+        <dd>The table of events in the index</dd>
+
+        <dt><a href=""sections/iana.include"">iana.include</a></dt>
+        <dd>IANA registration information</dd>
+        <dd class=""editor"">Editor: Arron</dd>
+
+        <dt><a href=""sections/infrastructure.include"">infrastructure.include</a></dt>
+        <dd>Section 2: Common Infrastructure. Microsyntaxes, Conformance, datatypes, fetching URLs, …</dd>
+
+        <dt><a href=""sections/introduction.include"">introduction.include</a></dt>
+        <dd>The introduction</dd>
+
+        <dt><a href=""sections/obsolete.include"">obsolete.include</a></dt>
+        <dd>Obsolete features of the languages</dd>
+        <dd class=""editor"">Editor: Arron</dd>
+
+        <dt><a href=""sections/rendering.include"">rendering.include</a></dt>
+        <dd>Rendering HTML, default styles, presentational hints, quirks mode…</dd>
+        <dd class=""editor"">Editor: Arron</dd>
+
+        <dt><a href=""sections/semantics.include"">semantics.include</a></dt>
+        <dd>4.14 Disable elements and 4.15 Matching HTML elements using selectors</dd>
+
+        <dt><a href=""sections/semantics-common-idioms.include"">semantics-common-idioms.include</a></dt>
+        <dd>4.13 Common things that don't have elements: subheadings, bread crumbs, conversation, tag clouds…</dd>
+
+        <dt><a href=""sections/semantics-document-metadata.include"">semantics-document-metadata.include</a></dt>
+        <dd>4.2 Document metadata: <code>head</code>, <code>title</code>, <code>meta</code>, <code>link</code>, <code>style</code>, <code>base</code>.</dd>
+
+        <dt><a href=""sections/semantics-edits.include"">semantics-edits.include</a></dt>
+        <dd>4.6 Edits: <code>del</code> and <code>ins</code> elements</dd>
+
+        <dt><a href=""sections/semantics-embedded-content.include"">semantics-embedded-content.include</a></dt>
+        <dd>4.7 Embedded Content: images, video, audio, MathML, SVG…</dd>
+
+        <dt><a href=""sections/semantics-forms.include"">semantics-forms.include</a></dt>
+        <dd>4.10 Forms</dd>
+
+        <dt><a href=""sections/semantics-grouping-content.include"">semantics-grouping-content.include</a></dt>
+        <dd>4.4 Block elements: <code>p</code>, <code>pre</code>, <code>figure</code>/<code>figcaption</code>, <code>blockquote</code>, <code>main</code>, <code>div</code>, lists.</dd>
+
+        <dt><a href=""sections/semantics-interactive-elements.include"">semantics-interactive-elements.include</a></dt>
+        <dd>4.11 Interactive elements: <code>details</code>/<code>summary</code>, <code>menu(item)</code>, and commands</dd>
+
+        <dt><a href=""sections/semantics-links.include"">semantics-links.include</a></dt>
+        <dd>4.8 Links: <code>a</code>, <code>area</code>, and <code>link</code> elements.</dd>
+
+        <dt><a href=""sections/semantics-root.include"">semantics-root.include</a></dt>
+        <dd>4.1 The <code>html</code> element</dd>
+
+        <dt><a href=""sections/semantics-scriptings.include"">semantics-scriptings.include</a></dt>
+        <dd>4.12 scripting: <code>script</code>, <code>noscript</code>, <code>template</code>, <code>canvas</code>.</dd>
+
+        <dt><a href=""sections/semantics-sections.include"">semantics-sections.include</a></dt>
+        <dd>4.3 Sections: <code>address</code>, <code>body</code>, <code>aside</code>, <code>nav</code>, <code>article</code>, headers</dd>
+        <dd>See also 4.4 for elements you think might be sectioning elements</dd>
+
+        <dt><a href=""sections/semantics-tabular-data.include"">semantics-tabular-data.include</a></dt>
+        <dd>4.9 Tables</dd>
+
+        <dt><a href=""sections/semantics-textlevel.include"">semantics-textlevel.include</a></dt>
+        <dd>4.5 inline elements: <code>a</code>, <code>bdo</code>, <code>em</code>, <code>ruby</code>, <code>var</code>, etc.</dd>
+
+        <dt><a href=""sections/syntax.include"">syntax.include</a></dt>
+        <dd>Section 8. HTML Syntax: parsing.</dd>
+        <dd class=""editor"">Editor: Travis</dd>
+
+        <dt><a href=""sections/webappapis.include"">webappapis.include</a></dt>
+        <dd>Section 7. Web Application APIs: Scripting, Event handlers and firing, Base64 methods, timers, <code>showModalDialog()</code>, the <code>navigator</code>, <code>imageBitMap</code> objects.</dd>
+
+        <dt><a href=""sections/xhtml.include"">xhtml.include</a></dt>
+        <dd>The XML syntax, differences and special rules</dd>
+        <dd class=""editor"">Editor: Travis</dd>
+    </dl>
+
+    <p>A couple of utility files are in the includes directory:</p>
+
+    <dl>
+        <dt><a href=""includes/cldr.include"">cldr.include</a></dt>
+        <dd>CSS defining quote marks for various languages</dd>
+        <dd class=""editor"">Editor: Arron</dd>
+
+        <dt><a href=""includes/entities.include"">entities.include</a></dt>
+        <dd>About 2200 entities that are defined to represent glyphs</dd>
+    </dl>
+
+    <p>Linking and references are handled by Bikeshed, by using <a href=""single-page.bs"">single-page.bs</a></p>
+</body>
+</html>
+",human
+Rust,"use crossterm::{
+    Command, QueueableCommand,
+    cursor::MoveTo,
+    style::{Attribute, Color, ResetColor, SetAttribute, SetForegroundColor},
+    terminal::{Clear, ClearType},
+};
+use std::{
+    fmt, fs,
+    io::{self, BufRead, StdoutLock, Write},
+};
+
+use crate::app_state::CheckProgress;
+
+pub struct MaxLenWriter<'a, 'lock> {
+    pub stdout: &'a mut StdoutLock<'lock>,
+    len: usize,
+    max_len: usize,
+}
+
+impl<'a, 'lock> MaxLenWriter<'a, 'lock> {
+    #[inline]
+    pub fn new(stdout: &'a mut StdoutLock<'lock>, max_len: usize) -> Self {
+        Self {
+            stdout,
+            len: 0,
+            max_len,
+        }
+    }
+
+    // Additional is for emojis that take more space.
+    #[inline]
+    pub fn add_to_len(&mut self, additional: usize) {
+        self.len += additional;
+    }
+}
+
+pub trait CountedWrite<'lock> {
+    fn write_ascii(&mut self, ascii: &[u8]) -> io::Result<()>;
+    fn write_str(&mut self, unicode: &str) -> io::Result<()>;
+    fn stdout(&mut self) -> &mut StdoutLock<'lock>;
+}
+
+impl<'lock> CountedWrite<'lock> for MaxLenWriter<'_, 'lock> {
+    fn write_ascii(&mut self, ascii: &[u8]) -> io::Result<()> {
+        let n = ascii.len().min(self.max_len.saturating_sub(self.len));
+        if n > 0 {
+            self.stdout.write_all(&ascii[..n])?;
+            self.len += n;
+        }
+        Ok(())
+    }
+
+    fn write_str(&mut self, unicode: &str) -> io::Result<()> {
+        if let Some((ind, c)) = unicode
+            .char_indices()
+            .take(self.max_len.saturating_sub(self.len))
+            .last()
+        {
+            self.stdout
+                .write_all(&unicode.as_bytes()[..ind + c.len_utf8()])?;
+            self.len += ind + 1;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn stdout(&mut self) -> &mut StdoutLock<'lock> {
+        self.stdout
+    }
+}
+
+impl<'a> CountedWrite<'a> for StdoutLock<'a> {
+    #[inline]
+    fn write_ascii(&mut self, ascii: &[u8]) -> io::Result<()> {
+        self.write_all(ascii)
+    }
+
+    #[inline]
+    fn write_str(&mut self, unicode: &str) -> io::Result<()> {
+        self.write_all(unicode.as_bytes())
+    }
+
+    #[inline]
+    fn stdout(&mut self) -> &mut StdoutLock<'a> {
+        self
+    }
+}
+
+pub struct CheckProgressVisualizer<'a, 'lock> {
+    stdout: &'a mut StdoutLock<'lock>,
+    n_cols: usize,
+}
+
+impl<'a, 'lock> CheckProgressVisualizer<'a, 'lock> {
+    const CHECKING_COLOR: Color = Color::Blue;
+    const DONE_COLOR: Color = Color::Green;
+    const PENDING_COLOR: Color = Color::Red;
+
+    pub fn build(stdout: &'a mut StdoutLock<'lock>, term_width: u16) -> io::Result<Self> {
+        clear_terminal(stdout)?;
+        stdout.write_all(""Checking all exercises…\n"".as_bytes())?;
+
+        // Legend
+        stdout.write_all(b""Color of exercise number: "")?;
+        stdout.queue(SetForegroundColor(Self::CHECKING_COLOR))?;
+        stdout.write_all(b""Checking"")?;
+        stdout.queue(ResetColor)?;
+        stdout.write_all(b"" - "")?;
+        stdout.queue(SetForegroundColor(Self::DONE_COLOR))?;
+        stdout.write_all(b""Done"")?;
+        stdout.queue(ResetColor)?;
+        stdout.write_all(b"" - "")?;
+        stdout.queue(SetForegroundColor(Self::PENDING_COLOR))?;
+        stdout.write_all(b""Pending"")?;
+        stdout.queue(ResetColor)?;
+        stdout.write_all(b""\n"")?;
+
+        // Exercise numbers with up to 3 digits.
+        // +1 because the last column doesn't end with a whitespace.
+        let n_cols = usize::from(term_width + 1) / 4;
+
+        Ok(Self { stdout, n_cols })
+    }
+
+    pub fn update(&mut self, progresses: &[CheckProgress]) -> io::Result<()> {
+        self.stdout.queue(MoveTo(0, 2))?;
+
+        let mut exercise_num = 1;
+        for exercise_progress in progresses {
+            match exercise_progress {
+                CheckProgress::None => (),
+                CheckProgress::Checking => {
+                    self.stdout
+                        .queue(SetForegroundColor(Self::CHECKING_COLOR))?;
+                }
+                CheckProgress::Done => {
+                    self.stdout.queue(SetForegroundColor(Self::DONE_COLOR))?;
+                }
+                CheckProgress::Pending => {
+                    self.stdout.queue(SetForegroundColor(Self::PENDING_COLOR))?;
+                }
+            }
+
+            write!(self.stdout, ""{exercise_num:<3}"")?;
+            self.stdout.queue(ResetColor)?;
+
+            if exercise_num != progresses.len() {
+                if exercise_num % self.n_cols == 0 {
+                    self.stdout.write_all(b""\n"")?;
+                } else {
+                    self.stdout.write_all(b"" "")?;
+                }
+
+                exercise_num += 1;
+            }
+        }
+
+        self.stdout.flush()
+    }
+}
+
+pub fn progress_bar<'a>(
+    writer: &mut impl CountedWrite<'a>,
+    progress: u16,
+    total: u16,
+    term_width: u16,
+) -> io::Result<()> {
+    debug_assert!(total <= 999);
+    debug_assert!(progress <= total);
+
+    const PREFIX: &[u8] = b""Progress: ["";
+    const PREFIX_WIDTH: u16 = PREFIX.len() as u16;
+    const POSTFIX_WIDTH: u16 = ""] xxx/xxx"".len() as u16;
+    const WRAPPER_WIDTH: u16 = PREFIX_WIDTH + POSTFIX_WIDTH;
+    const MIN_LINE_WIDTH: u16 = WRAPPER_WIDTH + 4;
+
+    if term_width < MIN_LINE_WIDTH {
+        writer.write_ascii(b""Progress: "")?;
+        // Integers are in ASCII.
+        return writer.write_ascii(format!(""{progress}/{total}"").as_bytes());
+    }
+
+    let stdout = writer.stdout();
+    stdout.write_all(PREFIX)?;
+
+    let width = term_width - WRAPPER_WIDTH;
+    let filled = (width * progress) / total;
+
+    stdout.queue(SetForegroundColor(Color::Green))?;
+    for _ in 0..filled {
+        stdout.write_all(b""#"")?;
+    }
+
+    if filled < width {
+        stdout.write_all(b"">"")?;
+    }
+
+    let width_minus_filled = width - filled;
+    if width_minus_filled > 1 {
+        let red_part_width = width_minus_filled - 1;
+        stdout.queue(SetForegroundColor(Color::Red))?;
+        for _ in 0..red_part_width {
+            stdout.write_all(b""-"")?;
+        }
+    }
+
+    stdout.queue(SetForegroundColor(Color::Reset))?;
+
+    write!(stdout, ""] {progress:>3}/{total}"")
+}
+
+pub fn clear_terminal(stdout: &mut StdoutLock) -> io::Result<()> {
+    stdout
+        .queue(MoveTo(0, 0))?
+        .queue(Clear(ClearType::All))?
+        .queue(Clear(ClearType::Purge))
+        .map(|_| ())
+}
+
+pub fn press_enter_prompt(stdout: &mut StdoutLock) -> io::Result<()> {
+    stdout.flush()?;
+    io::stdin().lock().read_until(b'\n', &mut Vec::new())?;
+    stdout.write_all(b""\n"")
+}
+
+/// Canonicalize, convert to string and remove verbatim part on Windows.
+pub fn canonicalize(path: &str) -> Option<String> {
+    fs::canonicalize(path)
+        .ok()?
+        .into_os_string()
+        .into_string()
+        .ok()
+        .map(|mut path| {
+            // Windows itself can't handle its verbatim paths.
+            if cfg!(windows) && path.as_bytes().starts_with(br""\\?\"") {
+                path.drain(..4);
+            }
+
+            path
+        })
+}
+
+pub fn terminal_file_link<'a>(
+    writer: &mut impl CountedWrite<'a>,
+    path: &str,
+    canonical_path: &str,
+    color: Color,
+) -> io::Result<()> {
+    writer
+        .stdout()
+        .queue(SetForegroundColor(color))?
+        .queue(SetAttribute(Attribute::Underlined))?;
+    writer.stdout().write_all(b""\x1b]8;;file://"")?;
+    writer.stdout().write_all(canonical_path.as_bytes())?;
+    writer.stdout().write_all(b""\x1b\\"")?;
+    // Only this part is visible.
+    writer.write_str(path)?;
+    writer.stdout().write_all(b""\x1b]8;;\x1b\\"")?;
+    writer
+        .stdout()
+        .queue(SetForegroundColor(Color::Reset))?
+        .queue(SetAttribute(Attribute::NoUnderline))?;
+
+    Ok(())
+}
+
+pub fn write_ansi(output: &mut Vec<u8>, command: impl Command) {
+    struct FmtWriter<'a>(&'a mut Vec<u8>);
+
+    impl fmt::Write for FmtWriter<'_> {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            self.0.extend_from_slice(s.as_bytes());
+            Ok(())
+        }
+    }
+
+    let _ = command.write_ansi(&mut FmtWriter(output));
+}
+",human
+Rust,"use anyhow::{Context, Error, Result};
+use std::{
+    fs::{self, create_dir},
+    io,
+};
+
+use crate::info_file::ExerciseInfo;
+
+/// Contains all embedded files.
+pub static EMBEDDED_FILES: EmbeddedFiles = rustlings_macros::include_files!();
+
+// Files related to one exercise.
+struct ExerciseFiles {
+    // The content of the exercise file.
+    exercise: &'static [u8],
+    // The content of the solution file.
+    solution: &'static [u8],
+    // Index of the related `ExerciseDir` in `EmbeddedFiles::exercise_dirs`.
+    dir_ind: usize,
+}
+
+fn create_dir_if_not_exists(path: &str) -> Result<()> {
+    if let Err(e) = create_dir(path) {
+        if e.kind() != io::ErrorKind::AlreadyExists {
+            return Err(Error::from(e).context(format!(""Failed to create the directory {path}"")));
+        }
+    }
+
+    Ok(())
+}
+
+// A directory in the `exercises/` directory.
+pub struct ExerciseDir {
+    pub name: &'static str,
+    readme: &'static [u8],
+}
+
+impl ExerciseDir {
+    fn init_on_disk(&self) -> Result<()> {
+        // 20 = 10 + 10
+        // exercises/ + /README.md
+        let mut dir_path = String::with_capacity(20 + self.name.len());
+        dir_path.push_str(""exercises/"");
+        dir_path.push_str(self.name);
+        create_dir_if_not_exists(&dir_path)?;
+
+        let mut readme_path = dir_path;
+        readme_path.push_str(""/README.md"");
+
+        fs::write(&readme_path, self.readme)
+            .with_context(|| format!(""Failed to write the file {readme_path}""))
+    }
+}
+
+/// All embedded files.
+pub struct EmbeddedFiles {
+    /// The content of the `info.toml` file.
+    pub info_file: &'static str,
+    exercise_files: &'static [ExerciseFiles],
+    pub exercise_dirs: &'static [ExerciseDir],
+}
+
+impl EmbeddedFiles {
+    /// Dump all the embedded files of the `exercises/` directory.
+    pub fn init_exercises_dir(&self, exercise_infos: &[ExerciseInfo]) -> Result<()> {
+        create_dir(""exercises"").context(""Failed to create the directory `exercises`"")?;
+
+        fs::write(
+            ""exercises/README.md"",
+            include_bytes!(""../exercises/README.md""),
+        )
+        .context(""Failed to write the file exercises/README.md"")?;
+
+        for dir in self.exercise_dirs {
+            dir.init_on_disk()?;
+        }
+
+        let mut exercise_path = String::with_capacity(64);
+        let prefix = ""exercises/"";
+        exercise_path.push_str(prefix);
+
+        for (exercise_info, exercise_files) in exercise_infos.iter().zip(self.exercise_files) {
+            let dir = &self.exercise_dirs[exercise_files.dir_ind];
+
+            exercise_path.truncate(prefix.len());
+            exercise_path.push_str(dir.name);
+            exercise_path.push('/');
+            exercise_path.push_str(&exercise_info.name);
+            exercise_path.push_str("".rs"");
+
+            fs::write(&exercise_path, exercise_files.exercise)
+                .with_context(|| format!(""Failed to write the exercise file {exercise_path}""))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn write_exercise_to_disk(&self, exercise_ind: usize, path: &str) -> Result<()> {
+        let exercise_files = &self.exercise_files[exercise_ind];
+        let dir = &self.exercise_dirs[exercise_files.dir_ind];
+
+        dir.init_on_disk()?;
+        fs::write(path, exercise_files.exercise)
+            .with_context(|| format!(""Failed to write the exercise file {path}""))
+    }
+
+    /// Write the solution file to disk and return its path.
+    pub fn write_solution_to_disk(
+        &self,
+        exercise_ind: usize,
+        exercise_name: &str,
+    ) -> Result<String> {
+        create_dir_if_not_exists(""solutions"")?;
+
+        let exercise_files = &self.exercise_files[exercise_ind];
+        let dir = &self.exercise_dirs[exercise_files.dir_ind];
+
+        // 14 = 10 + 1 + 3
+        // solutions/ + / + .rs
+        let mut dir_path = String::with_capacity(14 + dir.name.len() + exercise_name.len());
+        dir_path.push_str(""solutions/"");
+        dir_path.push_str(dir.name);
+        create_dir_if_not_exists(&dir_path)?;
+
+        let mut solution_path = dir_path;
+        solution_path.push('/');
+        solution_path.push_str(exercise_name);
+        solution_path.push_str("".rs"");
+
+        fs::write(&solution_path, exercise_files.solution)
+            .with_context(|| format!(""Failed to write the solution file {solution_path}""))?;
+
+        Ok(solution_path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    use super::*;
+
+    #[derive(Deserialize)]
+    struct ExerciseInfo {
+        dir: String,
+    }
+
+    #[derive(Deserialize)]
+    struct InfoFile {
+        exercises: Vec<ExerciseInfo>,
+    }
+
+    #[test]
+    fn dirs() {
+        let exercises = toml_edit::de::from_str::<InfoFile>(EMBEDDED_FILES.info_file)
+            .expect(""Failed to parse `info.toml`"")
+            .exercises;
+
+        assert_eq!(exercises.len(), EMBEDDED_FILES.exercise_files.len());
+
+        for (exercise, exercise_files) in exercises.iter().zip(EMBEDDED_FILES.exercise_files) {
+            assert_eq!(
+                exercise.dir,
+                EMBEDDED_FILES.exercise_dirs[exercise_files.dir_ind].name,
+            );
+        }
+    }
+}
+",human
+JavaScript,"/*
+Given a data set of an unknown size,
+Get a random sample in a random order
+It's used in data analytics, often as a way to get a small random sample from a data lake or warehouse, or from a large CSV file
+*/
+function shuf(datasetSource, sampleSize) {
+  const output = fillBaseSample(datasetSource, sampleSize)
+
+  return randomizeOutputFromDataset(datasetSource, output)
+}
+
+/**
+ * Fills the output if possible, with the minimum number of values
+ * @param {Iterable.<T>} datasetSource The iterable source of data
+ * @param {number} sampleSize The size of the sample to extract from the dataset
+ * @returns {Array.<T>} The random sample, as an array
+ * @template T
+ */
+function fillBaseSample(datasetSource, sampleSize) {
+  let filledIndexes = []
+  let output = new Array(sampleSize)
+
+  // Spread data out filling the array
+  while (true) {
+    const iterator = datasetSource.next()
+    if (iterator.done) break
+
+    let insertTo = Math.floor(Math.random() * output.length)
+    while (filledIndexes.includes(insertTo)) {
+      insertTo++
+      if (insertTo === output.length) {
+        insertTo = 0
+      }
+    }
+    output[insertTo] = {
+      value: iterator.value
+    }
+
+    filledIndexes = [...filledIndexes, insertTo]
+
+    if (filledIndexes.length === sampleSize) {
+      break
+    }
+  }
+
+  if (filledIndexes.length < output.length) {
+    // Not a large enough dataset to fill the sample - trim empty values
+    output = output.filter((_, i) => filledIndexes.includes(i))
+  }
+
+  return output.map((o) => o.value)
+}
+
+/**
+ * Replaces values in the output randomly with new ones from the dataset
+ * @param {Iterable.<T>} datasetSource The iterable source of data
+ * @param {Array.<T>} output The output so far, filled with data
+ * @returns {Array.<T>} The random sample, as an array
+ * @template T
+ */
+function randomizeOutputFromDataset(datasetSource, output) {
+  const newOutput = [...output]
+  let readSoFar = output.length
+
+  while (true) {
+    const iterator = datasetSource.next()
+    if (iterator.done) break
+    readSoFar++
+
+    const insertTo = Math.floor(Math.random() * readSoFar)
+    if (insertTo < newOutput.length) {
+      newOutput[insertTo] = iterator.value
+    }
+  }
+
+  return newOutput
+}
+
+// Example
+
+/**
+ * Generates a random range of data, with values between 0 and 2^31 - 1
+ * @param {number} length The number of data items to generate
+ * @returns {Iterable<number>} Random iterable data
+ */
+function* generateRandomData(length) {
+  const maxValue = Math.pow(2, 31) - 1
+  for (let i = 0; i < length; i++) {
+    yield Math.floor(Math.random() * maxValue)
+  }
+}
+
+// const source = generateRandomData(1000)
+// const result = shuf(source, 10)
+
+export { shuf, generateRandomData }
+",human
+JavaScript,"//= ===============================================================
+// SHA256.js
+//
+// Module that replicates the SHA-256 Cryptographic Hash
+// function in Javascript.
+//= ===============================================================
+
+// main variables
+const CHAR_SIZE = 8
+
+const K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+  0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+  0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]
+
+/**
+ * Adds padding to binary/hex string representation
+ *
+ * @param {string} str - string representation (binary/hex)
+ * @param {int} bits - total number of bits wanted
+ * @return {string} - string representation padding with empty (0) bits
+ *
+ * @example
+ *      pad(""10011"", 8); // ""00010011""
+ */
+function pad(str, bits) {
+  let res = str
+  while (res.length % bits !== 0) {
+    res = '0' + res
+  }
+  return res
+}
+
+/**
+ * Separates string into chunks of the same size
+ *
+ * @param {string} str - string to separate into chunks
+ * @param {int} size - number of characters wanted in each chunk
+ * @return {array} - array of original string split into chunks
+ *
+ * @example
+ *      chunkify(""this is a test"", 2)
+ */
+function chunkify(str, size) {
+  const chunks = []
+  for (let i = 0; i < str.length; i += size) {
+    chunks.push(str.slice(i, i + size))
+  }
+  return chunks
+}
+
+/**
+ * Rotates string representation of bits to the right
+ *
+ * @param {string} bits - string representation of bits
+ * @param {int} turns - number of rotations to make
+ * @return {string} - string representation of bits after rotation
+ *
+ * @example
+ *      rotateRight(""1011"", 3); // ""1101""
+ */
+function rotateRight(bits, turns) {
+  return bits.substr(bits.length - turns) + bits.substr(0, bits.length - turns)
+}
+
+/**
+ * Pre-processes message to feed the algorithm loop
+ *
+ * @param {string} message - message to pre-process
+ * @return {string} - processed message
+ */
+function preProcess(message) {
+  // convert message to binary representation padded to
+  // 8 bits, and add 1
+  let m =
+    message
+      .split('')
+      .map((e) => e.charCodeAt(0))
+      .map((e) => e.toString(2))
+      .map((e) => pad(e, 8))
+      .join('') + '1'
+
+  // extend message by adding empty bits (0)
+  while (m.length % 512 !== 448) {
+    m += '0'
+  }
+
+  // length of message in binary, padded, and extended
+  // to a 64 bit representation
+  let ml = (message.length * CHAR_SIZE).toString(2)
+  ml = pad(ml, 8)
+  ml = '0'.repeat(64 - ml.length) + ml
+
+  return m + ml
+}
+
+/**
+ * Hashes message using SHA-256 Cryptographic Hash Function
+ *
+ * @param {string} message - message to hash
+ * @return {string} - message digest (hash value)
+ */
+function SHA256(message) {
+  // initial hash variables
+  let H0 = 0x6a09e667
+  let H1 = 0xbb67ae85
+  let H2 = 0x3c6ef372
+  let H3 = 0xa54ff53a
+  let H4 = 0x510e527f
+  let H5 = 0x9b05688c
+  let H6 = 0x1f83d9ab
+  let H7 = 0x5be0cd19
+
+  // pre-process message and split into 512 bit chunks
+  const bits = preProcess(message)
+  const chunks = chunkify(bits, 512)
+
+  chunks.forEach(function (chunk, i) {
+    // break each chunk into 16 32-bit words
+    const words = chunkify(chunk, 32)
+
+    // extend 16 32-bit words to 80 32-bit words
+    for (let i = 16; i < 64; i++) {
+      const W1 = words[i - 15]
+      const W2 = words[i - 2]
+      const R1 = rotateRight(W1, 7)
+      const R2 = rotateRight(W1, 18)
+      const R3 = rotateRight(W2, 17)
+      const R4 = rotateRight(W2, 19)
+      const S0 = parseInt(R1, 2) ^ parseInt(R2, 2) ^ (parseInt(W1, 2) >>> 3)
+      const S1 = parseInt(R3, 2) ^ parseInt(R4, 2) ^ (parseInt(W2, 2) >>> 10)
+      const val =
+        parseInt(words[i - 16], 2) + S0 + parseInt(words[i - 7], 2) + S1
+      words[i] = pad((val >>> 0).toString(2), 32)
+    }
+
+    // initialize variables for this chunk
+    let [a, b, c, d, e, f, g, h] = [H0, H1, H2, H3, H4, H5, H6, H7]
+
+    for (let i = 0; i < 64; i++) {
+      const S1 =
+        [6, 11, 25]
+          .map((turns) => rotateRight(pad(e.toString(2), 32), turns))
+          .map((bitstring) => parseInt(bitstring, 2))
+          .reduce((acc, curr) => acc ^ curr, 0) >>> 0
+      const CH = ((e & f) ^ (~e & g)) >>> 0
+      const temp1 = (h + S1 + CH + K[i] + parseInt(words[i], 2)) >>> 0
+      const S0 =
+        [2, 13, 22]
+          .map((turns) => rotateRight(pad(a.toString(2), 32), turns))
+          .map((bitstring) => parseInt(bitstring, 2))
+          .reduce((acc, curr) => acc ^ curr, 0) >>> 0
+      const maj = ((a & b) ^ (a & c) ^ (b & c)) >>> 0
+      const temp2 = (S0 + maj) >>> 0
+
+      h = g
+      g = f
+      f = e
+      e = (d + temp1) >>> 0
+      d = c
+      c = b
+      b = a
+      a = (temp1 + temp2) >>> 0
+    }
+
+    // add values for this chunk to main hash variables (unsigned)
+    H0 = (H0 + a) >>> 0
+    H1 = (H1 + b) >>> 0
+    H2 = (H2 + c) >>> 0
+    H3 = (H3 + d) >>> 0
+    H4 = (H4 + e) >>> 0
+    H5 = (H5 + f) >>> 0
+    H6 = (H6 + g) >>> 0
+    H7 = (H7 + h) >>> 0
+  })
+
+  // combine hash values of main hash variables and return
+  const HH = [H0, H1, H2, H3, H4, H5, H6, H7]
+    .map((e) => e.toString(16))
+    .map((e) => pad(e, 8))
+    .join('')
+
+  return HH
+}
+
+// export SHA256 function
+export { SHA256 }
+",human
+Swift,"//
+//  FBMeViewController.swift
+//  FacebookMe
+//
+//  Copyright © 2017 Yi Gu. All rights reserved.
+//
+
+import UIKit
+
+class FBMeViewController: FBMeBaseViewController {
+  
+  typealias RowModel = [String: String]
+  
+  fileprivate var user: FBMeUser {
+    get {
+      return FBMeUser(name: ""BayMax"", education: ""CMU"")
+    }
+  }
+  
+  fileprivate var tableViewDataSource: [[String: Any]] {
+    get {
+     return TableKeys.populate(withUser: user)
+    }
+  }
+  
+  private let tableView: UITableView = {
+    let view = UITableView(frame: .zero, style: .grouped)
+    view.register(FBMeBaseCell.self, forCellReuseIdentifier: FBMeBaseCell.identifier)
+    return view
+  }()
+  
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    title = ""Facebook""
+    navigationController?.navigationBar.barTintColor = Specs.color.tint
+    
+    tableView.delegate = self
+    tableView.dataSource = self
+    view.addSubview(tableView)
+    
+    // Set layout for tableView.
+    tableView.translatesAutoresizingMaskIntoConstraints = false
+    view.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: ""H:|-0-[tableView]-0-|"", options: .directionLeadingToTrailing, metrics: nil, views: [""tableView"": tableView]))
+    view.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: ""V:|-0-[tableView]-0-|"", options: .directionLeadingToTrailing, metrics: nil, views: [""tableView"": tableView]))
+  }
+  
+  fileprivate func rows(at section: Int) -> [Any] {
+    return tableViewDataSource[section][TableKeys.Rows] as! [Any]
+  }
+  
+  fileprivate func title(at section: Int) -> String? {
+    return tableViewDataSource[section][TableKeys.Section] as? String
+  }
+  
+  fileprivate func rowModel(at indexPath: IndexPath) -> RowModel {
+    return rows(at: indexPath.section)[indexPath.row] as! RowModel
+  }
+}
+
+extension FBMeViewController: UITableViewDataSource {
+  func numberOfSections(in tableView: UITableView) -> Int {
+    return tableViewDataSource.count
+  }
+  
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return rows(at: section).count
+  }
+  
+  func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    return title(at: section)
+  }
+  
+  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    let modelForRow = rowModel(at: indexPath)
+    var cell = UITableViewCell()
+    
+    guard let title = modelForRow[TableKeys.Title] else {
+      return cell
+    }
+    
+    if title == user.name {
+      cell = UITableViewCell.init(style: .subtitle, reuseIdentifier: nil)
+    } else {
+      cell = tableView.dequeueReusableCell(withIdentifier: FBMeBaseCell.identifier, for: indexPath)
+    }
+
+    cell.textLabel?.text = title
+    
+    if let imageName = modelForRow[TableKeys.ImageName] {
+      cell.imageView?.image = UIImage(named: imageName)
+    } else if title != TableKeys.logout {
+      cell.imageView?.image = UIImage(named: Specs.imageName.placeholder)
+    }
+    
+    if title == user.name {
+      cell.detailTextLabel?.text = modelForRow[TableKeys.SubTitle]
+    }
+    
+    return cell
+  }
+}
+
+extension FBMeViewController: UITableViewDelegate {
+  func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+    let modelForRow = rowModel(at: indexPath)
+    
+    guard let title = modelForRow[TableKeys.Title] else {
+      return 0.0
+    }
+    
+    if title == user.name {
+      return 64.0
+    } else {
+      return 44.0
+    }
+  }
+  
+  func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    let modelForRow = rowModel(at: indexPath)
+    
+    guard let title = modelForRow[TableKeys.Title] else {
+      return
+    }
+    
+    if title == TableKeys.seeMore || title == TableKeys.addFavorites {
+      cell.textLabel?.textColor = Specs.color.tint
+      cell.accessoryType = .none
+    } else if title == TableKeys.logout {
+      cell.textLabel?.centerXAnchor.constraint(equalTo: cell.centerXAnchor).isActive = true
+      cell.textLabel?.textColor = Specs.color.red
+      cell.textLabel?.textAlignment = .center
+      cell.accessoryType = .none
+    } else {
+      cell.accessoryType = .disclosureIndicator
+    }
+  }
+}
+",human
+Swift,"// swift-tools-version:5.5
+
+import PackageDescription
+
+let buildTests = false
+
+extension Product {
+  static func allTests() -> [Product] {
+    if buildTests {
+      return [.executable(name: ""AllTestz"", targets: [""AllTestz""])]
+    } else {
+      return []
+    }
+  }
+}
+
+extension Target {
+    static func rxTarget(name: String, dependencies: [Target.Dependency]) -> Target {
+        .target(
+            name: name,
+            dependencies: dependencies,
+            resources: [.copy(""PrivacyInfo.xcprivacy"")]
+        )
+    }
+}
+
+extension Target {
+  static func rxCocoa() -> [Target] {
+    #if os(Linux)
+      return [.rxTarget(name: ""RxCocoa"", dependencies: [""RxSwift"", ""RxRelay""])]
+    #else
+      return [.rxTarget(name: ""RxCocoa"", dependencies: [""RxSwift"", ""RxRelay"", ""RxCocoaRuntime""])]
+    #endif
+  }
+
+  static func rxCocoaRuntime() -> [Target] {
+    #if os(Linux)
+      return []
+    #else
+      return [.rxTarget(name: ""RxCocoaRuntime"", dependencies: [""RxSwift""])]
+    #endif
+  }
+
+  static func allTests() -> [Target] {
+    if buildTests {
+      return [.target(name: ""AllTestz"", dependencies: [""RxSwift"", ""RxCocoa"", ""RxBlocking"", ""RxTest""])]
+    } else {
+      return []
+    }
+  }
+}
+
+let package = Package(
+  name: ""RxSwift"",
+  platforms: [.iOS(.v9), .macOS(.v10_10), .watchOS(.v3), .tvOS(.v9)],
+  products: ([
+    [
+      .library(name: ""RxSwift"", targets: [""RxSwift""]),
+      .library(name: ""RxCocoa"", targets: [""RxCocoa""]),
+      .library(name: ""RxRelay"", targets: [""RxRelay""]),
+      .library(name: ""RxBlocking"", targets: [""RxBlocking""]),
+      .library(name: ""RxTest"", targets: [""RxTest""]),
+      .library(name: ""RxSwift-Dynamic"", type: .dynamic, targets: [""RxSwift""]),
+      .library(name: ""RxCocoa-Dynamic"", type: .dynamic, targets: [""RxCocoa""]),
+      .library(name: ""RxRelay-Dynamic"", type: .dynamic, targets: [""RxRelay""]),
+      .library(name: ""RxBlocking-Dynamic"", type: .dynamic, targets: [""RxBlocking""]),
+      .library(name: ""RxTest-Dynamic"", type: .dynamic, targets: [""RxTest""]),
+    ],
+    Product.allTests()
+  ] as [[Product]]).flatMap { $0 },
+  targets: ([
+    [
+      .rxTarget(name: ""RxSwift"", dependencies: []),
+    ],
+    Target.rxCocoa(),
+    Target.rxCocoaRuntime(),
+    [
+      .rxTarget(name: ""RxRelay"", dependencies: [""RxSwift""]),
+      .target(name: ""RxBlocking"", dependencies: [""RxSwift""]),
+      .target(name: ""RxTest"", dependencies: [""RxSwift""]),
+    ],
+    Target.allTests()
+  ] as [[Target]]).flatMap { $0 },
+  swiftLanguageVersions: [.v5]
+)
+",human
+Ruby,"# A ruby program for temperature conversions
+
+module TemperatureConversion
+  # celsius -> kelvin = value of celsius + 273.15 => K
+  def self.celsius_to_kelvin(celsius_input)
+    kelvin_output = (celsius_input + 273.15).round(2)
+    puts ""#{celsius_input}°C = #{kelvin_output}K""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+
+  # kelvin -> celsius = vale of kelvin - 273.15 => °C
+  def self.kelvin_to_celsius(kelvin_input)
+    celsius_output = (kelvin_input - 273.15).round(2)
+    puts ""#{kelvin_input}K = #{celsius_output}°C""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+
+  # celsius -> fahrenheit = (value of celsius * 9 / 5) + 32 => °F
+  def self.celsius_to_fahrenheit(celsius_input)
+    fahrenheit_output = ((celsius_input * 9 / 5) + 32).round(2)
+    puts ""#{celsius_input}°C = #{fahrenheit_output}°F""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+
+  # fahrenheit -> celsius = (value of fahrenheit - 32) * 5 / 9 => °C
+  def self.fahrenheit_to_celsius(fahrenheit_input)
+    celsius_output = ((fahrenheit_input - 32) * 5 / 9).round(2)
+    puts ""#{fahrenheit_input}°F = #{celsius_output}°C""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+
+  # fahrenheit -> kelvin = [(value of fahrenheit - 32) * 5 / 9] + 273.15 => K
+  def self.fahrenheit_to_kelvin(fahrenheit_input)
+    kelvin_output = ((fahrenheit_input - 32) * 5 / 9).round(2).round(2)
+    puts ""#{fahrenheit_input}°F = #{kelvin_output}K""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+
+  # kelvin -> fahrenheit = [(value of kelvin - 32) * 5 / 9] + 273.15 => K
+  def self.kelvin_to_fahrenheit(kelvin_input)
+    fahrenheit_output = (((kelvin_input - 273.15) * 9 / 5) + 32).round(2).round(2)
+    puts ""#{kelvin_input}K = #{fahrenheit_output}°F""
+  rescue StandardError
+    puts 'Error: Please provide number only!'
+  end
+end
+
+# celsius <-> kelvin
+TemperatureConversion.celsius_to_kelvin(20)
+TemperatureConversion.kelvin_to_celsius(20)
+
+# Invalid input
+TemperatureConversion.kelvin_to_celsius('a')
+
+# celsius <-> fahrenheit
+TemperatureConversion.celsius_to_fahrenheit(-20)
+TemperatureConversion.fahrenheit_to_celsius(68)
+
+# Invalid input
+TemperatureConversion.celsius_to_fahrenheit('abc')
+
+# fahrenheit <-> kelvin
+TemperatureConversion.fahrenheit_to_kelvin(60)
+TemperatureConversion.kelvin_to_fahrenheit(-60)
+
+# Invalid input
+TemperatureConversion.fahrenheit_to_kelvin('60')
+",human
+Ruby,"# A ruby program for weight conversions
+
+module WeightConversion
+  # Kilogram -> Gram = (kilogram_value * 1000) grams
+  def self.kilogram_to_gram(kilogram_input)
+    raise StandardError unless kilogram_input.is_a?(Integer)
+
+    gram = kilogram_input * 1000
+
+    ""#{kilogram_input} kg = #{gram} g""
+  end
+
+  # Gram -> Kilogram = (gram_value / 1000) kilograms
+  def self.gram_to_kilogram(gram_input)
+    kilogram = gram_input / 1000
+
+    ""#{gram_input} g = #{kilogram} kg""
+  end
+
+  # Pound -> Ounce = (pound_value * 16) oz
+  def self.pound_to_ounce(pound_input)
+    ounce = pound_input * 16
+
+    ""#{pound_input} lb = #{ounce} oz""
+  end
+
+  # Ounce -> Pound = (ounce_value / 16) lb
+  def self.ounce_to_pound(ounce_input)
+    pound = ounce_input / 16
+
+    ""#{ounce_input} oz = #{pound} lb""
+  end
+
+  # Kilogram -> Pound = (kilogram_input * 2.205) lb
+  def self.kilogram_to_pound(kilogram_input)
+    pound = (kilogram_input * 2.205).round(2)
+
+    ""#{kilogram_input} kg = #{pound} lb""
+  end
+
+  # Pound -> Kilogram = (pound_input / 2.205) kg
+  def self.pound_to_kilogram(pound_input)
+    raise StandardError unless pound_input.is_a?(Integer)
+
+    kilogram = (pound_input / 2.205).round(2)
+
+    ""#{pound_input} lb = #{kilogram} kg""
+  end
+end
+
+#
+# Valid inputs
+#
+
+puts WeightConversion.kilogram_to_gram(2)
+# 2 kg = 2000 g
+puts WeightConversion.gram_to_kilogram(3000)
+# 3000 g = 3 kg
+puts WeightConversion.pound_to_ounce(16)
+# 16 lb = 256 oz
+puts WeightConversion.ounce_to_pound(16)
+# 16 oz = 1 lb
+puts WeightConversion.kilogram_to_pound(1)
+# 1 kg = 2.21 lb
+puts WeightConversion.pound_to_kilogram(100)
+# 100 lb = 45.35 kg
+
+#
+# Invalid inputs
+#
+
+begin
+  puts WeightConversion.kilogram_to_gram('a')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+
+begin
+  puts WeightConversion.kilogram_to_gram('3000')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+
+begin
+  puts WeightConversion.kilogram_to_gram('16')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+
+begin
+  puts WeightConversion.kilogram_to_gram('x ')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+
+begin
+  puts WeightConversion.kilogram_to_gram('weight')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+
+begin
+  puts WeightConversion.kilogram_to_gram('100')
+rescue StandardError
+  puts 'Error: Please provide number only!'
+end
+",human
+Kotlin,"import org.jetbrains.kotlin.config.KotlinCompilerVersion
+import org.jetbrains.kotlin.gradle.dsl.*
+import org.gradle.kotlin.dsl.*
+
+buildscript {
+    if (shouldUseLocalMaven(rootProject)) {
+        repositories {
+            mavenLocal()
+        }
+    }
+
+    repositories {
+        mavenCentral()
+        maven(url = ""https://plugins.gradle.org/m2/"")
+        addDevRepositoryIfEnabled(this, project)
+        mavenLocal()
+    }
+
+    dependencies {
+        // Please ensure that atomicfu-gradle-plugin is added to the classpath first, do not change the order, for details see #3984.
+        // The corresponding issue in kotlinx-atomicfu: https://github.com/Kotlin/kotlinx-atomicfu/issues/384
+        classpath(""org.jetbrains.kotlinx:atomicfu-gradle-plugin:${version(""atomicfu"")}"")
+        classpath(""org.jetbrains.kotlin:kotlin-gradle-plugin:${version(""kotlin"")}"")
+        classpath(""org.jetbrains.dokka:dokka-gradle-plugin:${version(""dokka"")}"")
+        classpath(""org.jetbrains.kotlinx:kotlinx-knit:${version(""knit"")}"")
+        classpath(""org.jetbrains.kotlinx:binary-compatibility-validator:${version(""binary_compatibility_validator"")}"")
+        classpath(""ru.vyarus:gradle-animalsniffer-plugin:${version(""animalsniffer"")}"") // Android API check
+        classpath(""org.jetbrains.kotlin:atomicfu:${version(""kotlin"")}"")
+        classpath(""org.jetbrains.kotlinx:kover-gradle-plugin:${version(""kover"")}"")
+    }
+
+    with(CacheRedirector) { buildscript.configureBuildScript(rootProject) }
+}
+
+// Configure subprojects with Kotlin sources
+apply(plugin = ""configure-compilation-conventions"")
+
+allprojects {
+    val deployVersion = properties[""DeployVersion""]
+    if (deployVersion != null) version = deployVersion
+
+    if (isSnapshotTrainEnabled(rootProject)) {
+        val skipSnapshotChecks = rootProject.properties[""skip_snapshot_checks""] != null
+        if (!skipSnapshotChecks && version != version(""atomicfu"")) {
+            throw IllegalStateException(""Current deploy version is $version, but atomicfu version is not overridden (${version(""atomicfu"")}) for $this"")
+        }
+    }
+
+    if (shouldUseLocalMaven(rootProject)) {
+        repositories {
+            mavenLocal()
+        }
+    }
+
+    // This project property is set during nightly stress test
+    val stressTest = project.properties[""stressTest""]
+    // Copy it to all test tasks
+    tasks.withType(Test::class).configureEach {
+        if (stressTest != null) {
+            systemProperty(""stressTest"", stressTest)
+        }
+    }
+}
+
+plugins {
+    id(""org.jetbrains.kotlinx.binary-compatibility-validator"") version ""0.16.2""
+}
+
+apply(plugin = ""base"")
+apply(plugin = ""kover-conventions"")
+
+apiValidation {
+    ignoredProjects += unpublished + listOf(""kotlinx-coroutines-bom"")
+    if (isSnapshotTrainEnabled(rootProject)) {
+        ignoredProjects += coreModule
+    }
+    ignoredPackages += ""kotlinx.coroutines.internal""
+    @OptIn(kotlinx.validation.ExperimentalBCVApi::class)
+    klib {
+        enabled = true
+    }
+}
+
+// Configure repositories
+allprojects {
+    repositories {
+        /*
+         * google should be first in the repository list because some of the play services
+         * transitive dependencies was removed from jcenter, thus breaking gradle dependency resolution
+         */
+        google()
+        mavenCentral()
+        addDevRepositoryIfEnabled(this, project)
+    }
+}
+
+// needs to be before evaluationDependsOn due to weird Gradle ordering
+apply(plugin = ""animalsniffer-conventions"")
+
+configure(subprojects.filter { !sourceless.contains(it.name) }) {
+    if (isMultiplatform) {
+        apply(plugin = ""kotlin-multiplatform"")
+        apply(plugin = ""kotlin-multiplatform-conventions"")
+    } else if (platformOf(this) == ""jvm"") {
+        apply(plugin = ""kotlin-jvm-conventions"")
+    } else {
+        val platform = platformOf(this)
+        throw IllegalStateException(""No configuration rules for $platform"")
+    }
+}
+
+configure(subprojects.filter { !sourceless.contains(it.name) && it.name != testUtilsModule }) {
+    if (isMultiplatform) {
+        configure<KotlinMultiplatformExtension> {
+            sourceSets.commonTest.dependencies { implementation(project("":$testUtilsModule"")) }
+        }
+    } else {
+        dependencies { add(""testImplementation"", project("":$testUtilsModule"")) }
+    }
+}
+
+// Add dependency to the core module in all the other subprojects.
+configure(subprojects.filter { !sourceless.contains(it.name) && it.name != coreModule }) {
+    evaluationDependsOn("":$coreModule"")
+    if (isMultiplatform) {
+        configure<KotlinMultiplatformExtension> {
+            sourceSets.commonMain.dependencies { api(project("":$coreModule"")) }
+        }
+    } else {
+        dependencies { add(""api"", project("":$coreModule"")) }
+    }
+}
+
+apply(plugin = ""bom-conventions"")
+apply(plugin = ""java-modularity-conventions"")
+apply(plugin = ""version-file-conventions"")
+
+rootProject.configureCommunityBuildTweaks()
+
+apply(plugin = ""source-set-conventions"")
+apply(plugin = ""dokka-conventions"")
+apply(plugin = ""knit-conventions"")
+
+/*
+ * TODO: core and non-core cannot be configured via 'configure(subprojects)'
+ * because of 'afterEvaluate' issue. This one should be migrated to
+ * `plugins { id(""pub-conventions"") }` eventually
+ */
+configure(subprojects.filter {
+    !unpublished.contains(it.name) && it.name != coreModule
+}) {
+    apply(plugin = ""pub-conventions"")
+}
+
+AuxBuildConfiguration.configure(rootProject)
+rootProject.registerTopLevelDeployTask()
+
+// Report Kotlin compiler version when building project
+println(""Using Kotlin compiler version: ${KotlinCompilerVersion.VERSION}"")
+",human
+Rust,"use std::str::FromStr;
+
+use cargo_near_build::BuildOpts;
+use cargo_near_build::{bon, camino, extended};
+
+fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+    // directory of target `status-message` sub-contract's crate
+    let workdir = ""../../status-message"";
+    // unix path to target `status-message` sub-contract's crate from root of the repo
+    let nep330_contract_path = ""examples/status-message"";
+
+    let manifest = camino::Utf8PathBuf::from_str(workdir)
+        .expect(""pathbuf from str"")
+        .join(""Cargo.toml"");
+
+    let build_opts = BuildOpts::builder()
+        .manifest_path(manifest)
+        .no_locked(true)
+        .override_nep330_contract_path(nep330_contract_path)
+        // a distinct target is needed to avoid deadlock during build
+        .override_cargo_target_dir(""../target/build-rs-status-message-for-high-level-factory"")
+        .build();
+
+    let build_script_opts = extended::BuildScriptOpts::builder()
+        .rerun_if_changed_list(bon::vec![workdir, ""Cargo.toml"", ""../Cargo.lock""])
+        .build_skipped_when_env_is(vec![
+            // shorter build for `cargo check`
+            (""PROFILE"", ""debug""),
+            (cargo_near_build::env_keys::BUILD_RS_ABI_STEP_HINT, ""true""),
+        ])
+        .stub_path(""../target/status-message-high-level-stub.bin"")
+        .result_env_key(""BUILD_RS_SUB_BUILD_STATUS-MESSAGE"")
+        .build();
+
+    let extended_opts = extended::BuildOptsExtended::builder()
+        .build_opts(build_opts)
+        .build_script_opts(build_script_opts)
+        .build();
+    cargo_near_build::extended::build(extended_opts)?;
+    Ok(())
+}
+",human
+Kotlin,"pluginManagement {
+    val javafx_plugin_version: String by settings
+    plugins {
+        id(""org.openjfx.javafxplugin"") version javafx_plugin_version
+        id(""me.champeau.jmh"") version ""0.7.2""
+    }
+
+    repositories {
+        maven(url = ""https://maven.pkg.jetbrains.space/kotlin/p/dokka/dev/"")
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = ""kotlinx.coroutines""
+
+fun module(path: String) {
+    val i = path.lastIndexOf(""/"")
+    val name = path.substring(i + 1)
+    include(name)
+    project("":$name"").projectDir = file(path)
+}
+val prop = System.getProperty(""build_snapshot_train"")
+var build_snapshot_train: String by extra
+build_snapshot_train = if (prop != null && prop != """") ""true"" else ""false""
+// ---------------------------
+
+include(""benchmarks"")
+module(""test-utils"")
+
+include(""kotlinx-coroutines-core"")
+
+module(""kotlinx-coroutines-test"")
+module(""kotlinx-coroutines-debug"")
+module(""kotlinx-coroutines-bom"")
+
+
+module(""integration/kotlinx-coroutines-guava"")
+module(""integration/kotlinx-coroutines-jdk8"")
+module(""integration/kotlinx-coroutines-slf4j"")
+module(""integration/kotlinx-coroutines-play-services"")
+
+module(""reactive/kotlinx-coroutines-reactive"")
+module(""reactive/kotlinx-coroutines-reactor"")
+module(""reactive/kotlinx-coroutines-jdk9"")
+module(""reactive/kotlinx-coroutines-rx2"")
+module(""reactive/kotlinx-coroutines-rx3"")
+module(""ui/kotlinx-coroutines-android"")
+module(""ui/kotlinx-coroutines-android/android-unit-tests"")
+if (JavaVersion.current().isJava11Compatible()) {
+    module(""ui/kotlinx-coroutines-javafx"")
+}
+module(""ui/kotlinx-coroutines-swing"")
+",human
+Python,"#!/usr/bin/env python3
+from abc import abstractmethod
+
+from .number_theory.prime_numbers import next_prime
+
+
+class HashTable:
+    """"""
+    Basic Hash Table example with open addressing and linear probing
+    """"""
+
+    def __init__(
+        self,
+        size_table: int,
+        charge_factor: int | None = None,
+        lim_charge: float | None = None,
+    ) -> None:
+        self.size_table = size_table
+        self.values = [None] * self.size_table
+        self.lim_charge = 0.75 if lim_charge is None else lim_charge
+        self.charge_factor = 1 if charge_factor is None else charge_factor
+        self.__aux_list: list = []
+        self._keys: dict = {}
+
+    def keys(self):
+        """"""
+        The keys function returns a dictionary containing the key value pairs.
+        key being the index number in hash table and value being the data value.
+
+        Examples:
+        1. creating HashTable with size 10 and inserting 3 elements
+        >>> ht = HashTable(10)
+        >>> ht.insert_data(10)
+        >>> ht.insert_data(20)
+        >>> ht.insert_data(30)
+        >>> ht.keys()
+        {0: 10, 1: 20, 2: 30}
+
+        2. creating HashTable with size 5 and inserting 5 elements
+        >>> ht = HashTable(5)
+        >>> ht.insert_data(5)
+        >>> ht.insert_data(4)
+        >>> ht.insert_data(3)
+        >>> ht.insert_data(2)
+        >>> ht.insert_data(1)
+        >>> ht.keys()
+        {0: 5, 4: 4, 3: 3, 2: 2, 1: 1}
+        """"""
+        return self._keys
+
+    def balanced_factor(self):
+        return sum(1 for slot in self.values if slot is not None) / (
+            self.size_table * self.charge_factor
+        )
+
+    def hash_function(self, key):
+        """"""
+        Generates hash for the given key value
+
+        Examples:
+
+        Creating HashTable with size 5
+        >>> ht = HashTable(5)
+        >>> ht.hash_function(10)
+        0
+        >>> ht.hash_function(20)
+        0
+        >>> ht.hash_function(4)
+        4
+        >>> ht.hash_function(18)
+        3
+        >>> ht.hash_function(-18)
+        2
+        >>> ht.hash_function(18.5)
+        3.5
+        >>> ht.hash_function(0)
+        0
+        >>> ht.hash_function(-0)
+        0
+        """"""
+        return key % self.size_table
+
+    def _step_by_step(self, step_ord):
+        print(f""step {step_ord}"")
+        print(list(range(len(self.values))))
+        print(self.values)
+
+    def bulk_insert(self, values):
+        """"""
+        bulk_insert is used for entering more than one element at a time
+        in the HashTable.
+
+        Examples:
+        1.
+        >>> ht = HashTable(5)
+        >>> ht.bulk_insert((10,20,30))
+        step 1
+        [0, 1, 2, 3, 4]
+        [10, None, None, None, None]
+        step 2
+        [0, 1, 2, 3, 4]
+        [10, 20, None, None, None]
+        step 3
+        [0, 1, 2, 3, 4]
+        [10, 20, 30, None, None]
+
+        2.
+        >>> ht = HashTable(5)
+        >>> ht.bulk_insert([5,4,3,2,1])
+        step 1
+        [0, 1, 2, 3, 4]
+        [5, None, None, None, None]
+        step 2
+        [0, 1, 2, 3, 4]
+        [5, None, None, None, 4]
+        step 3
+        [0, 1, 2, 3, 4]
+        [5, None, None, 3, 4]
+        step 4
+        [0, 1, 2, 3, 4]
+        [5, None, 2, 3, 4]
+        step 5
+        [0, 1, 2, 3, 4]
+        [5, 1, 2, 3, 4]
+        """"""
+        i = 1
+        self.__aux_list = values
+        for value in values:
+            self.insert_data(value)
+            self._step_by_step(i)
+            i += 1
+
+    def _set_value(self, key, data):
+        """"""
+        _set_value functions allows to update value at a particular hash
+
+        Examples:
+        1. _set_value in HashTable of size 5
+        >>> ht = HashTable(5)
+        >>> ht.insert_data(10)
+        >>> ht.insert_data(20)
+        >>> ht.insert_data(30)
+        >>> ht._set_value(0,15)
+        >>> ht.keys()
+        {0: 15, 1: 20, 2: 30}
+
+        2. _set_value in HashTable of size 2
+        >>> ht = HashTable(2)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht._set_value(3,15)
+        >>> ht.keys()
+        {3: 15, 2: 17, 4: 99}
+
+        3. _set_value in HashTable when hash is not present
+        >>> ht = HashTable(2)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht._set_value(0,15)
+        >>> ht.keys()
+        {3: 18, 2: 17, 4: 99, 0: 15}
+
+        4. _set_value in HashTable when multiple hash are not present
+        >>> ht = HashTable(2)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht._set_value(0,15)
+        >>> ht._set_value(1,20)
+        >>> ht.keys()
+        {3: 18, 2: 17, 4: 99, 0: 15, 1: 20}
+        """"""
+        self.values[key] = data
+        self._keys[key] = data
+
+    @abstractmethod
+    def _collision_resolution(self, key, data=None):
+        """"""
+        This method is a type of open addressing which is used for handling collision.
+
+        In this implementation the concept of linear probing has been used.
+
+        The hash table is searched sequentially from the original location of the
+        hash, if the new hash/location we get is already occupied we check for the next
+        hash/location.
+
+        references:
+            - https://en.wikipedia.org/wiki/Linear_probing
+
+        Examples:
+        1. The collision will be with keys 18 & 99, so new hash will be created for 99
+        >>> ht = HashTable(3)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht.keys()
+        {2: 17, 0: 18, 1: 99}
+
+        2. The collision will be with keys 17 & 101, so new hash
+        will be created for 101
+        >>> ht = HashTable(4)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht.insert_data(101)
+        >>> ht.keys()
+        {1: 17, 2: 18, 3: 99, 0: 101}
+
+        2. The collision will be with all keys, so new hash will be created for all
+        >>> ht = HashTable(1)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99)
+        >>> ht.keys()
+        {2: 17, 3: 18, 4: 99}
+
+        3. Trying to insert float key in hash
+        >>> ht = HashTable(1)
+        >>> ht.insert_data(17)
+        >>> ht.insert_data(18)
+        >>> ht.insert_data(99.99)
+        Traceback (most recent call last):
+        ...
+        TypeError: list indices must be integers or slices, not float
+        """"""
+        new_key = self.hash_function(key + 1)
+
+        while self.values[new_key] is not None and self.values[new_key] != key:
+            if self.values.count(None) > 0:
+                new_key = self.hash_function(new_key + 1)
+            else:
+                new_key = None
+                break
+
+        return new_key
+
+    def rehashing(self):
+        survivor_values = [value for value in self.values if value is not None]
+        self.size_table = next_prime(self.size_table, factor=2)
+        self._keys.clear()
+        self.values = [None] * self.size_table  # hell's pointers D: don't DRY ;/
+        for value in survivor_values:
+            self.insert_data(value)
+
+    def insert_data(self, data):
+        """"""
+        insert_data is used for inserting a single element at a time in the HashTable.
+
+        Examples:
+
+        >>> ht = HashTable(3)
+        >>> ht.insert_data(5)
+        >>> ht.keys()
+        {2: 5}
+        >>> ht = HashTable(5)
+        >>> ht.insert_data(30)
+        >>> ht.insert_data(50)
+        >>> ht.keys()
+        {0: 30, 1: 50}
+        """"""
+        key = self.hash_function(data)
+
+        if self.values[key] is None:
+            self._set_value(key, data)
+
+        elif self.values[key] == data:
+            pass
+
+        else:
+            collision_resolution = self._collision_resolution(key, data)
+            if collision_resolution is not None:
+                self._set_value(collision_resolution, data)
+            else:
+                self.rehashing()
+                self.insert_data(data)
+
+
+if __name__ == ""__main__"":
+    import doctest
+
+    doctest.testmod()
+",human
+Rust,"#[macro_use]
+extern crate clap;
+#[macro_use]
+extern crate lazy_static;
+
+use std::env;
+use std::fs::{self, File};
+use std::io::{self, Read, Write};
+use std::path::Path;
+use std::process;
+
+use clap::Shell;
+
+use app::{RGArg, RGArgKind};
+
+#[allow(dead_code)]
+#[path = ""src/app.rs""]
+mod app;
+
+fn main() {
+    // OUT_DIR is set by Cargo and it's where any additional build artifacts
+    // are written.
+    let outdir = match env::var_os(""OUT_DIR"") {
+        Some(outdir) => outdir,
+        None => {
+            eprintln!(
+                ""OUT_DIR environment variable not defined. \
+                 Please file a bug: \
+                 https://github.com/BurntSushi/ripgrep/issues/new"");
+            process::exit(1);
+        }
+    };
+    fs::create_dir_all(&outdir).unwrap();
+
+    let stamp_path = Path::new(&outdir).join(""ripgrep-stamp"");
+    if let Err(err) = File::create(&stamp_path) {
+        panic!(""failed to write {}: {}"", stamp_path.display(), err);
+    }
+    if let Err(err) = generate_man_page(&outdir) {
+        eprintln!(""failed to generate man page: {}"", err);
+    }
+
+    // Use clap to build completion files.
+    let mut app = app::app();
+    app.gen_completions(""rg"", Shell::Bash, &outdir);
+    app.gen_completions(""rg"", Shell::Fish, &outdir);
+    app.gen_completions(""rg"", Shell::PowerShell, &outdir);
+    // Note that we do not use clap's support for zsh. Instead, zsh completions
+    // are manually maintained in `complete/_rg`.
+
+    // Make the current git hash available to the build.
+    if let Some(rev) = git_revision_hash() {
+        println!(""cargo:rustc-env=RIPGREP_BUILD_GIT_HASH={}"", rev);
+    }
+}
+
+fn git_revision_hash() -> Option<String> {
+    let result = process::Command::new(""git"")
+        .args(&[""rev-parse"", ""--short=10"", ""HEAD""])
+        .output();
+    result.ok().and_then(|output| {
+        let v = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if v.is_empty() {
+            None
+        } else {
+            Some(v)
+        }
+    })
+}
+
+fn generate_man_page<P: AsRef<Path>>(outdir: P) -> io::Result<()> {
+    // If asciidoc isn't installed, then don't do anything.
+    if let Err(err) = process::Command::new(""a2x"").output() {
+        eprintln!(""Could not run 'a2x' binary, skipping man page generation."");
+        eprintln!(""Error from running 'a2x': {}"", err);
+        return Ok(());
+    }
+    // 1. Read asciidoc template.
+    // 2. Interpolate template with auto-generated docs.
+    // 3. Save interpolation to disk.
+    // 4. Use a2x (part of asciidoc) to convert to man page.
+    let outdir = outdir.as_ref();
+    let cwd = env::current_dir()?;
+    let tpl_path = cwd.join(""doc"").join(""rg.1.txt.tpl"");
+    let txt_path = outdir.join(""rg.1.txt"");
+
+    let mut tpl = String::new();
+    File::open(&tpl_path)?.read_to_string(&mut tpl)?;
+    tpl = tpl.replace(""{OPTIONS}"", &formatted_options()?);
+
+    let githash = git_revision_hash();
+    let githash = githash.as_ref().map(|x| &**x);
+    tpl = tpl.replace(""{VERSION}"", &app::long_version(githash));
+
+    File::create(&txt_path)?.write_all(tpl.as_bytes())?;
+    let result = process::Command::new(""a2x"")
+        .arg(""--no-xmllint"")
+        .arg(""--doctype"").arg(""manpage"")
+        .arg(""--format"").arg(""manpage"")
+        .arg(&txt_path)
+        .spawn()?
+        .wait()?;
+    if !result.success() {
+        let msg = format!(""'a2x' failed with exit code {:?}"", result.code());
+        return Err(ioerr(msg));
+    }
+    Ok(())
+}
+
+fn formatted_options() -> io::Result<String> {
+    let mut args = app::all_args_and_flags();
+    args.sort_by(|x1, x2| x1.name.cmp(&x2.name));
+
+    let mut formatted = vec![];
+    for arg in args {
+        if arg.hidden {
+            continue;
+        }
+        // ripgrep only has two positional arguments, and probably will only
+        // ever have two positional arguments, so we just hardcode them into
+        // the template.
+        if let app::RGArgKind::Positional{..} = arg.kind {
+            continue;
+        }
+        formatted.push(formatted_arg(&arg)?);
+    }
+    Ok(formatted.join(""\n\n""))
+}
+
+fn formatted_arg(arg: &RGArg) -> io::Result<String> {
+    match arg.kind {
+        RGArgKind::Positional{..} => panic!(""unexpected positional argument""),
+        RGArgKind::Switch { long, short, multiple } => {
+            let mut out = vec![];
+
+            let mut header = format!(""--{}"", long);
+            if let Some(short) = short {
+                header = format!(""-{}, {}"", short, header);
+            }
+            if multiple {
+                header = format!(""*{}* ...::"", header);
+            } else {
+                header = format!(""*{}*::"", header);
+            }
+            writeln!(out, ""{}"", header)?;
+            writeln!(out, ""{}"", formatted_doc_txt(arg)?)?;
+
+            Ok(String::from_utf8(out).unwrap())
+        }
+        RGArgKind::Flag { long, short, value_name, multiple, .. } => {
+            let mut out = vec![];
+
+            let mut header = format!(""--{}"", long);
+            if let Some(short) = short {
+                header = format!(""-{}, {}"", short, header);
+            }
+            if multiple {
+                header = format!(""*{}* _{}_ ...::"", header, value_name);
+            } else {
+                header = format!(""*{}* _{}_::"", header, value_name);
+            }
+            writeln!(out, ""{}"", header)?;
+            writeln!(out, ""{}"", formatted_doc_txt(arg)?)?;
+
+            Ok(String::from_utf8(out).unwrap())
+        }
+    }
+}
+
+fn formatted_doc_txt(arg: &RGArg) -> io::Result<String> {
+    let paragraphs: Vec<&str> = arg.doc_long.split(""\n\n"").collect();
+    if paragraphs.is_empty() {
+        return Err(ioerr(format!(""missing docs for --{}"", arg.name)));
+    }
+    let first = format!(""  {}"", paragraphs[0].replace(""\n"", ""\n  ""));
+    if paragraphs.len() == 1 {
+        return Ok(first);
+    }
+    Ok(format!(""{}\n+\n{}"", first, paragraphs[1..].join(""\n+\n"")))
+}
+
+fn ioerr(msg: String) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, msg)
+}
+",human
+PHP,"<?php
+
+namespace DataStructures;
+
+require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../../DataStructures/ReverseLinkedList/LinkedListItem.php';
+require_once __DIR__ . '/../../DataStructures/ReverseLinkedList/ReverseLinkedList.php';
+
+
+use DataStructures\ReverseLinkedList\LinkedListItem;
+use DataStructures\ReverseLinkedList\ReverseLinkedList;
+use PHPUnit\Framework\TestCase;
+
+class ReverseLinkedListTest extends TestCase
+{
+    public function testReverseLinkedList()
+    {
+        $list = [1,2,3,4,5];
+
+        $firstItem = (new LinkedListItem())->setValue(0);
+
+        $prevItem = $firstItem;
+
+        foreach ($list as $value) {
+            $item = new LinkedListItem();
+            $item->setValue($value);
+            $item->setPrev($prevItem);
+            $prevItem->setNext($item);
+            $prevItem = $item;
+        }
+
+        $newFirstItem = (new ReverseLinkedList())->reverse($firstItem);
+        do {
+            $this->assertEquals($newFirstItem->getValue(), array_pop($list));
+        } while ($newFirstItem = $newFirstItem->getNext());
+    }
+}
+",human
