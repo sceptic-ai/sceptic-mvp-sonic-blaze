@@ -401,3 +401,22 @@ export const getContractInfo = async (): Promise<ContractInfo> => {
     throw error;
   }
 };
+
+// Update contract information
+export const updateContractProjectName = async (
+  contractAddress: string,
+  projectName: string,
+  txHash: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await api.post('/api/contract-update', {
+      contract_address: contractAddress,
+      project_name: projectName,
+      tx_hash: txHash
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating contract information:', error);
+    throw error;
+  }
+};

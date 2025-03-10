@@ -4,6 +4,9 @@ import { AnimatedButton } from './AnimatedButton';
 import { useWallet } from '../contexts/WalletContext';
 import { toast } from 'sonner';
 
+// Export types for TypeScript
+export interface ContractInteractionProps {}
+
 export function ContractInteraction(): ReactElement {
   const [projectName, setProjectName] = useState<string>('');
   const [newName, setNewName] = useState<string>('');
