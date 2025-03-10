@@ -3,6 +3,7 @@ import { getProjectName, updateProjectName, getContractOwner, isContractOwner } 
 import { AnimatedButton } from './AnimatedButton';
 import { useWallet } from '../contexts/WalletContext';
 import { toast } from 'sonner';
+import { updateContractProjectName } from '../lib/api';
 
 // Export types for TypeScript
 export interface ContractInteractionProps {}
@@ -45,6 +46,26 @@ export function ContractInteraction(): ReactElement {
     }
   };
 
+  const syncWithBackend = async (projectName: string, txHash: string): Promise<void> => {
+    try {
+      if (!import.meta.env.VITE_CONTRACT_ADDRESS) {
+        console.warn('Contract address not found in environment variables');
+        return;
+      }
+      
+      await updateContractProjectName(
+        import.meta.env.VITE_CONTRACT_ADDRESS as string,
+        projectName,
+        txHash
+      );
+      
+      console.log('Contract information synchronized with backend');
+    } catch (error) {
+      console.error('Failed to sync with backend:', error);
+      // Don't show error to user as this is a background sync
+    }
+  };
+
   const handleUpdateName = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     
@@ -69,6 +90,10 @@ export function ContractInteraction(): ReactElement {
       // Update the displayed project name
       setProjectName(newName);
       setNewName('');
+      
+      // Sync with backend
+      await syncWithBackend(newName, txHash);
+      
       setIsLoading(false);
     } catch (error: any) {
       console.error('Error updating project name:', error);

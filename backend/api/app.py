@@ -299,6 +299,56 @@ async def publish_dataset(
         logging.error(f"Veri seti yükleme hatası: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/contract-update")
+async def update_contract_info(request: dict):
+    """Update contract information based on blockchain transactions"""
+    try:
+        contract_address = request.get("contract_address")
+        project_name = request.get("project_name")
+        tx_hash = request.get("tx_hash")
+        
+        if not all([contract_address, project_name, tx_hash]):
+            raise HTTPException(status_code=400, detail="Missing required parameters")
+        
+        # Here you would typically verify the transaction on the blockchain
+        # and update your database with the new project name
+        
+        # For this demo, we'll just log the update
+        logging.info(f"Contract {contract_address} updated: project_name={project_name}, tx={tx_hash}")
+        
+        # Optional: Store this information in a database or file
+        # This is just a simple example - in a real app, use a proper database
+        contract_updates_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'contract_updates.json')
+        
+        try:
+            if os.path.exists(contract_updates_file):
+                with open(contract_updates_file, 'r') as f:
+                    updates = json.load(f)
+            else:
+                updates = []
+                
+            updates.append({
+                "contract_address": contract_address,
+                "project_name": project_name,
+                "tx_hash": tx_hash,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            with open(contract_updates_file, 'w') as f:
+                json.dump(updates, f, indent=2)
+                
+        except Exception as e:
+            logging.error(f"Error saving contract update: {str(e)}")
+        
+        return {
+            "success": True,
+            "message": "Contract information updated successfully"
+        }
+        
+    except Exception as e:
+        logging.error(f"Error updating contract info: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def process_github_analysis(analysis_id: str, request: GithubAnalysisRequest):
     """GitHub analizini arka planda işleme"""
     blockchain_tx = None
