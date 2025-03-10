@@ -136,7 +136,7 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
     vulnerabilities = []
     code_quality = {}
     risk_level = 0
-    
+
     # Tehlikeli import ve kütüphane kullanımları
     dangerous_imports = {
         r'import\s+os': {'name': 'OS Access', 'risk': 'high', 'score': 8, 
@@ -156,7 +156,7 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
         r'import\s+sqlite3|import\s+pymysql|import\s+psycopg2': {'name': 'Database Access', 'risk': 'medium', 'score': 5,
                                                               'description': 'Code has database access capabilities'},
     }
-    
+
     # Tehlikeli fonksiyon kullanımları
     dangerous_functions = {
         r'eval\s*\(': {'name': 'Arbitrary Code Execution', 'risk': 'critical', 'score': 10,
@@ -348,7 +348,7 @@ def load_model() -> Tuple:
         
         logging.info("Model and preprocessing files loaded successfully")
         return model, tokenizer, scaler
-    
+
     except Exception as e:
         logging.error(f"Error loading model: {str(e)}")
         traceback.print_exc()
@@ -400,8 +400,12 @@ def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str
         # Scale the features
         scaled_features = scaler.transform(feature_df)
         
-        # Prepare text input
-        text_input = ' '.join(map(str, features.values()))
+        # Prepare text input - handle both dict and list formats
+        if isinstance(features, dict):
+            text_input = ' '.join(map(str, features.values()))
+        else:
+            text_input = ' '.join(map(str, features))
+        
         seq = tokenizer.texts_to_sequences([text_input])
         padded_seq = pad_sequences(seq, maxlen=MAX_SEQUENCE_LENGTH)
         
@@ -435,6 +439,12 @@ def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str
         # Calculate processing time
         processing_time = time.time() - start_time
         
+        # Prepare features for output
+        if isinstance(features, dict):
+            features_dict = features
+        else:
+            features_dict = {name: float(value) for name, value in zip(FEATURE_NAMES, features)}
+        
         # Return results
         return {
             'prediction': prediction_label,
@@ -444,7 +454,7 @@ def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str
                 'AI': round(ai_prob, 3),
                 'Human': round(human_prob, 3)
             },
-            'features': {name: float(value) for name, value in features.items()},
+            'features': features_dict,
             'security_analysis': security_analysis,
             'risk_score': round(security_analysis['risk_level'], 1),
             'processing_time_ms': round(processing_time * 1000)
@@ -633,7 +643,7 @@ def fetch_github_code(url: str, max_files: int = 10, max_lines: int = 5000) -> D
                 
                 response['total_lines'] = line_count
                 response['fetched_files'] = 1
-                
+
             except Exception as e:
                 logging.error(f"Error fetching file {data.get('path', '')}: {str(e)}")
                 return {'error': f"Error fetching file: {str(e)}"}
@@ -748,7 +758,7 @@ async def analyze_github_repo(url: str) -> Dict[str, Any]:
             },
             'truncated': repo_data.get('truncated', False)
         }
-        
+
     except Exception as e:
         logging.error(f"Error analyzing GitHub repository: {str(e)}")
         return {'error': f"Failed to analyze repository: {str(e)}"} 

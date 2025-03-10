@@ -98,25 +98,62 @@ export interface ContractInfo {
   };
 }
 
+// Create axios instance with default config
 const api = axios.create({
   baseURL: apiUrl,
+  timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    // You can add auth headers here if needed
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      // Server responded with error status
+      console.error('API Error Response:', error.response.data);
+      return Promise.reject(error.response.data);
+    } else if (error.request) {
+      // Request was made but no response
+      console.error('API No Response:', error.request);
+      return Promise.reject({
+        message: 'No response from server. Please check your connection.',
+      });
+    } else {
+      // Error in request configuration
+      console.error('API Request Error:', error.message);
+      return Promise.reject({
+        message: 'Error making request. Please try again.',
+      });
+    }
+  }
+);
+
 // Updated functions with new API endpoints
-export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<any> => {
+export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<AnalysisResult> => {
   try {
     const response = await api.post('/analyze/github', data);
     return response.data;
   } catch (error) {
-    console.error('Error analyzing GitHub repository:', error);
+    console.error('Error analyzing GitHub repo:', error);
     throw error;
   }
 };
 
-export const analyzeCode = async (data: CodeAnalysisRequest): Promise<any> => {
+export const analyzeCode = async (data: CodeAnalysisRequest): Promise<AnalysisResult> => {
   try {
     const response = await api.post('/analyze', data);
     return response.data;
@@ -126,12 +163,12 @@ export const analyzeCode = async (data: CodeAnalysisRequest): Promise<any> => {
   }
 };
 
-export const getAnalysisResult = async (requestId: string): Promise<any> => {
+export const getAnalysisResult = async (requestId: string): Promise<AnalysisResult> => {
   try {
     const response = await api.get(`/analysis/${requestId}`);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching analysis result for ${requestId}:`, error);
+    console.error('Error getting analysis result:', error);
     throw error;
   }
 };
@@ -436,3 +473,5 @@ export const getContractUpdates = async (limit: number = 10): Promise<ContractUp
     return [];
   }
 };
+
+export default api;

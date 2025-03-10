@@ -12,6 +12,7 @@ import asyncio
 from dotenv import load_dotenv
 import time
 import functools
+
 from backend.ml.model import predict_code, parse_github_url, fetch_github_code, load_model, analyze_github_repo
 from backend.utils.setup import setup_directories
 
@@ -30,7 +31,7 @@ except ImportError:
 
 # ML modülünü import etme
 try:
-    from backend.ml.model import predict_code, parse_github_url, fetch_github_code, load_model
+    from ..ml.model import predict_code, parse_github_url, fetch_github_code, load_model
 except ImportError:
     logging.error("ML modülü yüklenemedi!")
     # Basit mocklanmış fonksiyonlar
@@ -60,8 +61,8 @@ MAX_CACHE_SIZE = 100
 
 app = FastAPI(
     title="Sceptic AI API",
-    description="API for the Sceptic AI code analysis tool",
-    version="1.0.0"
+    description="API for code analysis and vulnerability detection",
+    version="0.1.0"
 )
 
 # CORS ayarları

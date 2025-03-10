@@ -19,9 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Add the parent directory to the path so we can import our modules
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from .utils.setup import setup_directories
+from .ml.models.train_model import train_model
 
 def main():
     """Main entry point for training the model"""
@@ -32,11 +31,7 @@ def main():
     
     try:
         # Set up directories first
-        from backend.utils.setup import setup_directories
         setup_directories()
-        
-        # Import model training module
-        from backend.ml.models.train_model import train_model
         
         # Check if the model already exists
         model_dir = os.path.join(os.path.dirname(__file__), 'ml/models')

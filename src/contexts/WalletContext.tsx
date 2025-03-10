@@ -18,6 +18,13 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+const WELCOME_MESSAGE = `Welcome to Sceptic AI!
+
+Please sign this message to verify your wallet ownership.
+This signature will not trigger any blockchain transaction or cost any gas fees.
+
+Nonce: ${Date.now()}`;
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
@@ -117,32 +124,65 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       
       if (accounts && accounts.length > 0) {
-        setAddress(accounts[0]);
-        localStorage.setItem('walletAddress', accounts[0]);
+        const userAddress = accounts[0];
         
-        // Get current chain
-        const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
-        const currentChainId = parseInt(chainIdHex, 16);
-        setChainId(currentChainId);
-        
-        closeModal();
-        
-        // Check if on Sonic Network and offer to switch if not
-        if (networkInfo && currentChainId !== parseInt(networkInfo.network.chainId)) {
-          toast.info('Your wallet is not connected to Sonic Network. Click to switch.', {
-            action: {
-              label: 'Switch',
-              onClick: switchToSonicNetwork
-            }
-          });
+        // Request signature
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const signer = await provider.getSigner();
+          const signature = await signer.signMessage(WELCOME_MESSAGE);
+          
+          // Verify signature
+          const recoveredAddress = ethers.verifyMessage(WELCOME_MESSAGE, signature);
+          
+          if (recoveredAddress.toLowerCase() !== userAddress.toLowerCase()) {
+            throw new Error('Invalid signature');
+          }
+          
+          // If signature is valid, proceed with connection
+          setAddress(userAddress);
+          localStorage.setItem('walletAddress', userAddress);
+          
+          // Get current chain
+          const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+          const currentChainId = parseInt(chainIdHex, 16);
+          setChainId(currentChainId);
+          
+          closeModal();
+          
+          toast.success('Wallet connected successfully!');
+          
+          // Check if on Sonic Network and offer to switch if not
+          if (networkInfo && currentChainId !== parseInt(networkInfo.network.chainId)) {
+            toast.info('Your wallet is not connected to Sonic Network. Click to switch.', {
+              action: {
+                label: 'Switch',
+                onClick: switchToSonicNetwork
+              }
+            });
+          }
+        } catch (signError: any) {
+          if (signError.code === 4001) {
+            // User rejected signature
+            toast.error('Please sign the message to connect your wallet');
+          } else {
+            console.error('Signature error:', signError);
+            toast.error('Failed to verify wallet ownership');
+          }
+          setAddress(null);
+          localStorage.removeItem('walletAddress');
         }
       }
       
       setIsConnecting(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect wallet:', error);
+      if (error.code === 4001) {
+        toast.error('Please approve the connection request in your wallet');
+      } else {
+        toast.error('Failed to connect wallet. Please try again.');
+      }
       setIsConnecting(false);
-      toast.error('Failed to connect wallet. Please try again.');
     }
   };
 

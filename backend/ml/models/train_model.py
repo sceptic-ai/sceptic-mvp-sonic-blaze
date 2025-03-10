@@ -217,13 +217,14 @@ def generate_synthetic_data(num_samples=2000):
     code_samples = []
     labels = []
     
+    # Generate equal numbers of AI and human code
     for _ in range(num_samples // 2):
         # Generate AI code (more structured, longer functions)
         lines = []
         num_lines = random.randint(3, 7)  # AI tends to generate more complete functions
         
         for _ in range(num_lines):
-            lines.append(generate_random_code_line(is_ai=True))
+            lines.append(generate_random_code_line(is_ai=True, depth=0))
         
         code = "\n".join(lines)
         code_samples.append(code)
@@ -234,7 +235,7 @@ def generate_synthetic_data(num_samples=2000):
         num_lines = random.randint(2, 5)  # Human code might be more concise
         
         for _ in range(num_lines):
-            lines.append(generate_random_code_line(is_ai=False))
+            lines.append(generate_random_code_line(is_ai=False, depth=0))
         
         code = "\n".join(lines)
         code_samples.append(code)
@@ -369,7 +370,7 @@ def build_model(input_shape, feature_shape):
     
     # Use Adam optimizer with learning rate scheduling
     optimizer = Adam(learning_rate=0.001)
-    
+
     model.compile(
         loss='binary_crossentropy',
         optimizer=optimizer,
@@ -521,31 +522,53 @@ def train_model():
             # Ensure we have a mix of both AI and human code
             if ai_count == 0 or human_count == 0:
                 logging.warning(f"Imbalanced dataset: {ai_count} AI, {human_count} human. Using more synthetic data.")
-                code_samples = real_code_samples + synthetic_code_samples
-                labels = real_labels + synthetic_labels
+                
+                # Create array with real data
+                combined_code_samples = real_code_samples.copy()
+                combined_labels = real_labels.copy()
+                
+                # Add synthetic data to balance
+                combined_code_samples.extend(synthetic_code_samples)
+                combined_labels.extend(synthetic_labels)
+                
+                code_samples = combined_code_samples
+                labels = combined_labels
             else:
                 # If we have enough real data of both types, we can rely more on it
-                code_samples = real_code_samples.copy()
-                labels = real_labels.copy()
+                combined_code_samples = real_code_samples.copy()
+                combined_labels = real_labels.copy()
                 
                 # Add a smaller proportion of synthetic data for robustness
-                synthetic_indices = np.random.choice(range(len(synthetic_code_samples)), 
-                                                   size=min(len(synthetic_code_samples), len(real_code_samples)//2),
-                                                   replace=False)
-                code_samples.extend([synthetic_code_samples[i] for i in synthetic_indices])
-                labels.extend([synthetic_labels[i] for i in synthetic_indices])
+                synthetic_to_use = min(len(synthetic_code_samples), len(real_code_samples)//2)
+                for i in range(synthetic_to_use):
+                    combined_code_samples.append(synthetic_code_samples[i])
+                    combined_labels.append(synthetic_labels[i])
+                
+                code_samples = combined_code_samples
+                labels = combined_labels
         else:
             logging.warning("No real data available, using only synthetic data")
             code_samples = synthetic_code_samples
             labels = synthetic_labels
         
-        # Convert to numpy arrays
+        # Verify arrays have the same length
+        if len(code_samples) != len(labels):
+            logging.error(f"Array length mismatch: code_samples={len(code_samples)}, labels={len(labels)}")
+            # Fix by truncating to the shorter length
+            min_length = min(len(code_samples), len(labels))
+            code_samples = code_samples[:min_length]
+            labels = labels[:min_length]
+            logging.info(f"Arrays adjusted to length {min_length}")
+        
+        # Convert to numpy arrays and ensure they are the same length
         code_samples = np.array(code_samples)
         labels = np.array(labels)
         
+        # Make sure both arrays have the same length
+        assert len(code_samples) == len(labels), "Arrays must be the same length"
+        
         # Shuffle the data
-        indices = np.arange(len(code_samples))
-        np.random.shuffle(indices)
+        indices = np.random.permutation(len(code_samples))
         code_samples = code_samples[indices]
         labels = labels[indices]
         
@@ -637,7 +660,8 @@ def train_model():
             'model_path': model_path,
             'tokenizer_path': tokenizer_path,
             'scaler_path': scaler_path,
-            'accuracy': accuracy
+            'accuracy': accuracy,
+            'history': history.history
         }
         
     except Exception as e:
