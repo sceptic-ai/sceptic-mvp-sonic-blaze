@@ -31,13 +31,19 @@ function AnalysisPage() {
   const [result, setResult] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
-  const { address } = useWallet();
+  const { address, signAnalysisRequest } = useWallet();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setResult(null);
+    
+    if (!address) {
+      toast.error('Please connect your wallet first');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       if (analysisMethod === 'repository') {
@@ -47,9 +53,13 @@ function AnalysisPage() {
           return;
         }
         
+        // Request signature before analysis
+        const signature = await signAnalysisRequest(formData.repositoryUrl);
+        
         const response = await analyzeGithubRepo({
           url: formData.repositoryUrl,
-          max_files: 15
+          max_files: 15,
+          signature // Add signature to request
         });
         
         if (response.status === 'processing') {
@@ -99,9 +109,13 @@ function AnalysisPage() {
           return;
         }
         
+        // Request signature for direct code analysis
+        const signature = await signAnalysisRequest('direct-code-analysis');
+        
         const response = await analyzeCode({
           code: formData.code,
-          language: detectLanguage(formData.code)
+          language: detectLanguage(formData.code),
+          signature
         });
         
         if (response.status === 'completed') {
@@ -115,7 +129,11 @@ function AnalysisPage() {
       }
     } catch (error: any) {
       console.error('Analysis error:', error);
-      toast.error(error.message || 'Failed to analyze code. Please try again.');
+      if (error.message === 'User rejected signature request') {
+        toast.error('Analysis cancelled - signature rejected');
+      } else {
+        toast.error(error.message || 'Failed to analyze code. Please try again.');
+      }
       setIsLoading(false);
     }
   };

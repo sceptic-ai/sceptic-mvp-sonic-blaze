@@ -27,6 +27,9 @@ export interface Analysis {
 export interface AnalysisResult {
   request_id: string;
   status: string;
+  id?: string;
+  timestamp?: string;
+  repoUrl?: string;
   result?: {
     prediction: string;
     confidence: number;
@@ -63,11 +66,13 @@ export interface DailyMetrics {
 export interface GithubAnalysisRequest {
   url: string;
   max_files?: number;
+  signature: string;
 }
 
 export interface CodeAnalysisRequest {
   code: string;
   language?: string;
+  signature: string;
 }
 
 export interface ContractInfo {
@@ -184,6 +189,7 @@ export const fetchAnalyses = async (): Promise<AnalysisResult[]> => {
     return [
       {
         id: 'error_1',
+        request_id: 'error_1',
         repoUrl: 'Error fetching analyses',
         timestamp: new Date().toISOString(),
         status: 'failed',
@@ -216,7 +222,7 @@ export const fetchDailyMetrics = async (): Promise<DailyMetrics[]> => {
     return last7Days.map(date => {
       // O güne ait analizleri filtrele
       const dailyAnalyses = analyses.filter(a => 
-        a.timestamp.split('T')[0] === date && 
+        a.timestamp && a.timestamp.split('T')[0] === date && 
         a.status === 'completed' && 
         a.result?.risk_score !== undefined
       );

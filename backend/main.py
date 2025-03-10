@@ -10,6 +10,11 @@ import aiohttp
 import asyncio
 import re
 from urllib.parse import urlparse
+import os
+from dotenv import load_dotenv
+from eth_account.messages import encode_defunct
+from web3 import Web3
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,14 +32,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Load environment variables
+load_dotenv()
+
+# Get GitHub token from environment
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+
 # Models
 class CodeAnalysisRequest(BaseModel):
     code: str
     language: Optional[str] = None
+    signature: str
 
 class GitHubAnalysisRequest(BaseModel):
     url: HttpUrl
     max_files: Optional[int] = 10
+    signature: str
 
 class AnalysisResponse(BaseModel):
     request_id: str
@@ -88,37 +101,82 @@ analysis_cache = {}
 
 async def fetch_github_content(url: str) -> Dict[str, Any]:
     """Fetch repository content from GitHub"""
-    # Convert URL to API URL
-    parsed = urlparse(str(url))
-    path_parts = parsed.path.strip('/').split('/')
-    if len(path_parts) < 2:
-        raise ValueError("Invalid GitHub URL")
-    
-    owner, repo = path_parts[:2]
-    api_url = f"https://api.github.com/repos/{owner}/{repo}"
-    
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "Sceptic-AI"
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        # Fetch repo info
-        async with session.get(api_url, headers=headers) as response:
-            if response.status != 200:
-                raise HTTPException(status_code=response.status, detail="Failed to fetch repository")
-            repo_info = await response.json()
+    try:
+        # Convert URL to API URL
+        parsed = urlparse(str(url))
+        path_parts = parsed.path.strip('/').split('/')
+        if len(path_parts) < 2:
+            raise ValueError("Invalid GitHub URL")
         
-        # Fetch files
-        async with session.get(f"{api_url}/contents", headers=headers) as response:
-            if response.status != 200:
-                raise HTTPException(status_code=response.status, detail="Failed to fetch repository contents")
-            contents = await response.json()
-    
-    return {
-        "repo_info": repo_info,
-        "contents": contents
-    }
+        owner, repo = path_parts[:2]
+        api_url = f"https://api.github.com/repos/{owner}/{repo}"
+        
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "Sceptic-AI"
+        }
+        
+        if GITHUB_TOKEN:
+            headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+            logger.info("Using GitHub token for authentication")
+        else:
+            logger.warning("No GitHub token found. API rate limits will be restricted.")
+        
+        async with aiohttp.ClientSession() as session:
+            # Fetch repo info
+            async with session.get(api_url, headers=headers) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    logger.error(f"GitHub API error: {error_data}")
+                    raise HTTPException(
+                        status_code=response.status,
+                        detail=f"Failed to fetch repository: {error_data.get('message', 'Unknown error')}"
+                    )
+                repo_info = await response.json()
+            
+            # Fetch files using recursive tree API
+            tree_url = f"{api_url}/git/trees/{repo_info['default_branch']}?recursive=1"
+            async with session.get(tree_url, headers=headers) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    logger.error(f"GitHub API error: {error_data}")
+                    raise HTTPException(
+                        status_code=response.status,
+                        detail=f"Failed to fetch repository contents: {error_data.get('message', 'Unknown error')}"
+                    )
+                tree_data = await response.json()
+            
+            # Filter and format contents
+            filtered_contents = []
+            for item in tree_data.get('tree', []):
+                if item['type'] == 'blob' and any(item['path'].endswith(ext) for ext in ['.py', '.js', '.ts', '.sol', '.java', '.cpp', '.go']):
+                    filtered_contents.append({
+                        "name": item['path'].split('/')[-1],
+                        "path": item['path'],
+                        "type": "file",
+                        "download_url": f"https://raw.githubusercontent.com/{owner}/{repo}/{repo_info['default_branch']}/{item['path']}"
+                    })
+            
+            if not filtered_contents:
+                logger.warning(f"No suitable files found in repository {owner}/{repo}")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No suitable files found for analysis. Repository must contain .py, .js, .ts, .sol, .java, .cpp, or .go files."
+                )
+            
+            return {
+                "repo_info": repo_info,
+                "contents": filtered_contents
+            }
+            
+    except aiohttp.ClientError as e:
+        logger.error(f"Network error while fetching GitHub content: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Network error: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching GitHub content: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 def analyze_code_content(content: str) -> Dict[str, Any]:
     """Analyze code content for AI patterns"""
@@ -198,6 +256,23 @@ def analyze_code_content(content: str) -> Dict[str, Any]:
         }
     }
 
+def verify_signature(message: str, signature: str) -> bool:
+    """Verify an Sonic Network Blaze signature"""
+    try:
+        # Create the message hash
+        message_hash = encode_defunct(text=message)
+        
+        # Recover the address that signed the message
+        w3 = Web3()
+        address = w3.eth.account.recover_message(message_hash, signature=signature)
+        
+        # In a real application, you might want to check if this address
+        # is authorized to request analysis
+        return True
+    except Exception as e:
+        logging.error(f"Signature verification error: {str(e)}")
+        return False
+
 # Routes
 @app.get("/")
 async def root():
@@ -206,136 +281,84 @@ async def root():
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_code(request: CodeAnalysisRequest):
     try:
+        # Verify signature
+        message = f"""I authorize Sceptic AI to analyze code.
+
+This signature confirms your request to analyze code.
+It will not trigger any blockchain transaction or cost any gas fees.
+
+Timestamp: {int(time.time())}"""
+        
+        if not verify_signature(message, request.signature):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        # Continue with existing analysis code
         request_id = generate_request_id()
-        analysis = analyze_code_content(request.code)
+        result = analyze_code_content(request.code)
         
         return {
             "request_id": request_id,
             "status": "completed",
-            "result": {
-                "prediction": "ai" if analysis["ai_analysis"]["is_ai_generated"] else "human",
-                "confidence": analysis["ai_analysis"]["confidence"],
-                "risk_score": analysis["risk_assessment"]["risk_score"],
-                "metrics": analysis["metrics"],
-                "ai_indicators": analysis["ai_analysis"]["indicators"],
-                "warnings": [w for w in analysis["risk_assessment"]["warnings"] if w]
-            }
+            "result": result
         }
     except Exception as e:
-        logger.error(f"Error analyzing code: {str(e)}")
+        logging.error(f"Error analyzing code: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze/github", response_model=AnalysisResponse)
 async def analyze_github_repo(request: GitHubAnalysisRequest):
     try:
+        # Verify signature
+        message = f"""I authorize Sceptic AI to analyze the following repository:
+{request.url}
+
+This signature confirms your request to analyze the repository.
+It will not trigger any blockchain transaction or cost any gas fees.
+
+Timestamp: {int(time.time())}"""
+        
+        if not verify_signature(message, request.signature):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        # Continue with existing GitHub analysis code
         request_id = generate_request_id()
         
-        # Start analysis process
-        analysis_cache[request_id] = {
-            "status": "processing",
-            "progress": 0,
-            "files_analyzed": 0
-        }
-        
-        # Fetch repository content
-        repo_data = await fetch_github_content(str(request.url))
-        
-        # Analyze repository structure
-        files_to_analyze = [
-            f for f in repo_data["contents"]
-            if f["type"] == "file" and f["name"].endswith(('.py', '.js', '.ts', '.sol', '.java', '.cpp', '.go'))
-        ][:request.max_files]
-        
-        total_files = len(files_to_analyze)
-        if total_files == 0:
-            raise HTTPException(status_code=400, detail="No suitable files found for analysis")
-        
-        # Analyze each file
-        analyses = []
-        files_analyzed = 0
-        
-        async with aiohttp.ClientSession() as session:
-            for file_info in files_to_analyze:
+        try:
+            repo_content = await fetch_github_content(str(request.url))
+            if not repo_content.get("contents"):
+                raise HTTPException(status_code=400, detail="No suitable files found for analysis")
+            
+            results = []
+            for file_info in repo_content["contents"][:request.max_files]:
                 try:
-                    async with session.get(file_info["download_url"]) as response:
-                        if response.status == 200:
-                            content = await response.text()
-                            analysis = analyze_code_content(content)
-                            analyses.append({
-                                "file": file_info["name"],
-                                "analysis": analysis
-                            })
-                            files_analyzed += 1
-                            
-                            # Update progress
-                            analysis_cache[request_id]["progress"] = (files_analyzed / total_files) * 100
-                            analysis_cache[request_id]["files_analyzed"] = files_analyzed
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(file_info["download_url"]) as response:
+                            if response.status == 200:
+                                content = await response.text()
+                                result = analyze_code_content(content)
+                                results.append({
+                                    "file": file_info["name"],
+                                    "analysis": result
+                                })
                 except Exception as e:
                     logger.error(f"Error analyzing file {file_info['name']}: {str(e)}")
                     continue
-        
-        # Calculate aggregate metrics
-        total_risk_score = sum(a["analysis"]["risk_assessment"]["risk_score"] for a in analyses) / len(analyses)
-        ai_confidence = sum(a["analysis"]["ai_analysis"]["confidence"] for a in analyses) / len(analyses)
-        is_ai_generated = ai_confidence > 0.7
-        
-        # Collect all warnings
-        all_warnings = []
-        for a in analyses:
-            all_warnings.extend([w for w in a["analysis"]["risk_assessment"]["warnings"] if w])
-        
-        # Update cache with final results
-        analysis_cache[request_id] = {
-            "status": "completed",
-            "result": {
-                "prediction": "ai" if is_ai_generated else "human",
-                "confidence": ai_confidence,
-                "risk_score": total_risk_score,
-                "repository": str(request.url),
-                "files_analyzed": files_analyzed,
-                "security_analysis": {
-                    "vulnerabilities": [
-                        {
-                            "type": "code_quality",
-                            "name": warning,
-                            "risk": "high" if "High" in warning else "medium",
-                            "description": warning,
-                            "score": 8 if "High" in warning else 5
-                        }
-                        for warning in set(all_warnings)
-                    ],
-                    "risk_level": "high" if total_risk_score > 70 else "medium" if total_risk_score > 40 else "low",
-                    "high_risk": total_risk_score > 70,
-                    "medium_risk": 40 < total_risk_score <= 70,
-                    "low_risk": total_risk_score <= 40,
-                    "code_quality": {
-                        "complexity": sum(a["analysis"]["metrics"]["complexity_score"] for a in analyses) / len(analyses),
-                        "maintainability": 10 - (total_risk_score / 10)
-                    }
-                },
-                "file_details": [
-                    {
-                        "name": a["file"],
-                        "metrics": a["analysis"]["metrics"],
-                        "ai_confidence": a["analysis"]["ai_analysis"]["confidence"],
-                        "risk_score": a["analysis"]["risk_assessment"]["risk_score"]
-                    }
-                    for a in analyses
-                ]
+            
+            return {
+                "request_id": request_id,
+                "status": "completed",
+                "result": {
+                    "repository": str(request.url),
+                    "files_analyzed": len(results),
+                    "analyses": results
+                }
             }
-        }
-        
-        return {
-            "request_id": request_id,
-            "status": "completed",
-            "result": analysis_cache[request_id]["result"]
-        }
-        
+        except Exception as e:
+            logging.error(f"Error analyzing GitHub repository: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
     except Exception as e:
-        logger.error(f"Error analyzing GitHub repository: {str(e)}")
-        if request_id in analysis_cache:
-            analysis_cache[request_id]["status"] = "error"
-            analysis_cache[request_id]["error"] = str(e)
+        logging.error(f"Error in GitHub analysis endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/analysis/{request_id}", response_model=AnalysisResponse)

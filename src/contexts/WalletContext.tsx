@@ -14,6 +14,7 @@ interface WalletContextType {
   closeModal: () => void;
   switchToSonicNetwork: () => Promise<void>;
   networkInfo: ContractInfo | null;
+  signAnalysisRequest: (repoUrl: string) => Promise<string>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -24,6 +25,28 @@ Please sign this message to verify your wallet ownership.
 This signature will not trigger any blockchain transaction or cost any gas fees.
 
 Nonce: ${Date.now()}`;
+
+const SONIC_BLAZE_TESTNET = {
+  chainId: "0xDECE", // 57054 in hex
+  chainName: "Sonic Blaze Testnet",
+  nativeCurrency: {
+    name: "SONIC",
+    symbol: "SONIC",
+    decimals: 18
+  },
+  rpcUrls: ["https://rpc.blaze.soniclabs.com"],
+  blockExplorerUrls: ["https://testnet.sonicscan.org"]
+};
+
+const ANALYSIS_SIGN_MESSAGE = (repoUrl: string) => `
+I authorize Sceptic AI to analyze the following repository:
+${repoUrl}
+
+This signature confirms your request to analyze the repository.
+It will not trigger any blockchain transaction or cost any gas fees.
+
+Timestamp: ${Date.now()}
+`;
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
@@ -152,14 +175,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           
           toast.success('Wallet connected successfully!');
           
-          // Check if on Sonic Network and offer to switch if not
-          if (networkInfo && currentChainId !== parseInt(networkInfo.network.chainId)) {
-            toast.info('Your wallet is not connected to Sonic Network. Click to switch.', {
-              action: {
-                label: 'Switch',
-                onClick: switchToSonicNetwork
-              }
-            });
+          // Automatically switch to Sonic network after successful connection
+          if (currentChainId !== parseInt(SONIC_BLAZE_TESTNET.chainId, 16)) {
+            await switchToSonicNetwork();
           }
         } catch (signError: any) {
           if (signError.code === 4001) {
@@ -187,39 +205,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const switchToSonicNetwork = async () => {
-    if (!window.ethereum || !networkInfo) return;
-    
-    const targetChainId = networkInfo.network.chainId;
-    const chainIdHex = `0x${parseInt(targetChainId).toString(16)}`;
+    if (!window.ethereum) return;
     
     try {
+      // Try to switch to Sonic network
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: chainIdHex }],
+        params: [{ chainId: SONIC_BLAZE_TESTNET.chainId }],
       });
       
-      toast.success(`Switched to ${networkInfo.network.name}`);
+      toast.success(`Switched to ${SONIC_BLAZE_TESTNET.chainName}`);
     } catch (switchError: any) {
       // This error code indicates that the chain has not been added to MetaMask
       if (switchError.code === 4902) {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
-            params: [
-              {
-                chainId: chainIdHex,
-                chainName: networkInfo.network.name,
-                nativeCurrency: {
-                  name: 'Sonic',
-                  symbol: 'SONIC',
-                  decimals: 18
-                },
-                rpcUrls: [networkInfo.network.rpcUrl],
-                blockExplorerUrls: [`https://testnet.sonicscan.org`],
-              },
-            ],
+            params: [SONIC_BLAZE_TESTNET],
           });
-          toast.success(`Added and switched to ${networkInfo.network.name}`);
+          toast.success(`Added and switched to ${SONIC_BLAZE_TESTNET.chainName}`);
         } catch (addError) {
           console.error('Failed to add Sonic Network:', addError);
           toast.error('Failed to add Sonic Network. Please try adding it manually.');
@@ -240,6 +244,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
+  const signAnalysisRequest = async (repoUrl: string): Promise<string> => {
+    if (!window.ethereum || !address) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(ANALYSIS_SIGN_MESSAGE(repoUrl));
+      return signature;
+    } catch (error: any) {
+      if (error.code === 4001) {
+        throw new Error('User rejected signature request');
+      }
+      throw error;
+    }
+  };
+
   return (
     <WalletContext.Provider
       value={{
@@ -252,7 +274,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         openModal,
         closeModal,
         switchToSonicNetwork,
-        networkInfo
+        networkInfo,
+        signAnalysisRequest
       }}
     >
       {children}
