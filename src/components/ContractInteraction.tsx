@@ -27,21 +27,31 @@ export function ContractInteraction(): ReactElement {
       setIsLoading(true);
       
       // Get the project name from the contract
-      const name = await getProjectName();
+      const name = await getProjectName().catch(error => {
+        console.warn('Error getting project name:', error);
+        return 'Unnamed Project';
+      });
       setProjectName(name);
       
       // Get the contract owner address
-      const owner = await getContractOwner();
-      setOwnerAddress(owner);
+      const owner = await getContractOwner().catch(error => {
+        console.warn('Error getting contract owner:', error);
+        return null;
+      });
+      if (owner) {
+        setOwnerAddress(owner);
+      }
       
       // Check if the current wallet is the owner
-      const ownerStatus = await isContractOwner();
-      setIsOwner(ownerStatus);
+      if (address && owner) {
+        const ownerStatus = await isContractOwner().catch(() => false);
+        setIsOwner(ownerStatus);
+      }
       
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading contract data:', error);
-      toast.error('Error loading contract data. Make sure your wallet is connected and on the correct network.');
+      toast.error('Error loading contract data. Please check your wallet connection.');
       setIsLoading(false);
     }
   };
@@ -101,7 +111,7 @@ export function ContractInteraction(): ReactElement {
       if (error.message && error.message.includes('Only owner')) {
         toast.error('Only the contract owner can update the project name');
       } else {
-        toast.error('Error updating project name. Check console for details.');
+        toast.error('Error updating project name. Please try again.');
       }
       
       setIsLoading(false);
@@ -129,12 +139,12 @@ export function ContractInteraction(): ReactElement {
         <>
           <div className="mb-6">
             <h3 className="font-medium text-gray-700 mb-2">Current Project Name:</h3>
-            <p className="text-2xl font-semibold text-primary-200">{projectName}</p>
+            <p className="text-2xl font-semibold text-primary-200">{projectName || 'Loading...'}</p>
           </div>
           
           <div className="mb-6">
             <h3 className="font-medium text-gray-700 mb-2">Contract Owner:</h3>
-            <p className="font-mono text-sm">{ownerAddress}</p>
+            <p className="font-mono text-sm">{ownerAddress || 'Loading...'}</p>
             {isOwner && (
               <span className="inline-block mt-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
                 You are the owner

@@ -25,14 +25,12 @@ export interface Analysis {
 }
 
 export interface AnalysisResult {
-  id: string;
-  repoUrl: string;
-  timestamp: string;
+  request_id: string;
   status: string;
   result?: {
     prediction: string;
     confidence: number;
-    source: string;
+    source?: string;
     source_probabilities?: Record<string, number>;
     risk_score: number;
     features?: Record<string, number>;
@@ -45,15 +43,14 @@ export interface AnalysisResult {
         score: number;
       }>;
       code_quality: Record<string, any>;
-      risk_level: number;
+      risk_level: string;
       high_risk: boolean;
       medium_risk: boolean;
       low_risk: boolean;
     };
     processing_time_ms?: number;
   };
-  blockchainTx?: string;
-  explorerUrl?: string;
+  error?: string;
 }
 
 export interface DailyMetrics {
@@ -110,10 +107,11 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth headers here if needed
+    // Add auth header if needed
     return config;
   },
   (error) => {
+    console.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -123,22 +121,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      // Server responded with error status
-      console.error('API Error Response:', error.response.data);
-      return Promise.reject(error.response.data);
+      // Server error response
+      console.error('Server error:', error.response.data);
     } else if (error.request) {
-      // Request was made but no response
-      console.error('API No Response:', error.request);
-      return Promise.reject({
-        message: 'No response from server. Please check your connection.',
-      });
+      // No response received
+      console.error('No response received:', error.request);
     } else {
-      // Error in request configuration
-      console.error('API Request Error:', error.message);
-      return Promise.reject({
-        message: 'Error making request. Please try again.',
-      });
+      // Request config error
+      console.error('Request config error:', error.message);
     }
+    return Promise.reject(error);
   }
 );
 
@@ -413,12 +405,12 @@ export const publishDataset = async (data: FormData): Promise<DatasetPublishResu
 };
 
 // Fetch contract information
-export const getContractInfo = async (): Promise<ContractInfo> => {
+export const getContractInfo = async (): Promise<any> => {
   try {
-    const response = await api.get('/api/contract-info');
+    const response = await api.get('/contract/info');
     return response.data;
   } catch (error) {
-    console.error('Error fetching contract info:', error);
+    console.error('Error getting contract info:', error);
     throw error;
   }
 };
