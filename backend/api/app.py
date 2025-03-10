@@ -203,34 +203,33 @@ async def list_analyses():
 
 @app.get("/api/contract-info")
 async def get_contract_info():
-    """Akıllı kontrat bilgilerini döndür"""
-    try:
-        # ABI dosyalarının yolları
-        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        audit_abi_path = os.path.join(script_dir, 'blockchain/abi/sceptic_abi.json')
-        
-        # ABI dosyalarını oku
-        with open(audit_abi_path, 'r') as f:
-            audit_contract_abi = json.load(f)
-        
-        # Kontrat adreslerini .env'den al
-        audit_contract_address = os.getenv("AUDIT_CONTRACT_ADDRESS", "")
-        
-        # Ağ bilgisini al
-        network_type = os.getenv("SONIC_NETWORK", "testnet")
-        
-        # Explorer URL
-        explorer_url = "https://testnet-explorer.sonic.techpay.io" if network_type == "testnet" else "https://explorer.sonic.techpay.io"
-        
-        return {
-            "auditContractAddress": audit_contract_address,
-            "auditContractAbi": audit_contract_abi,
-            "networkType": network_type,
-            "explorerUrl": explorer_url
+    """Get contract information for the UI"""
+    return {
+        "contracts": {
+            "sceptic_simple": {
+                "address": os.getenv("VITE_CONTRACT_ADDRESS"),
+                "name": "ScepticSimple",
+                "description": "Simple contract for testing"
+            },
+            "sceptic_token": {
+                "address": os.getenv("TOKEN_CONTRACT_ADDRESS"),
+                "name": "ScepticToken",
+                "description": "SCEP governance token"
+            },
+            "sceptic_audit": {
+                "address": os.getenv("AUDIT_CONTRACT_ADDRESS"),
+                "name": "ScepticAudit",
+                "description": "Main contract for storing audit results"
+            }
+        },
+        "network": {
+            "name": "Sonic Network",
+            "chainId": "57054" if os.getenv("NETWORK_TYPE", "testnet") == "testnet" else "146",
+            "rpcUrl": os.getenv("SONIC_TESTNET_RPC", "https://rpc.blaze.soniclabs.com") 
+                      if os.getenv("NETWORK_TYPE", "testnet") == "testnet" 
+                      else os.getenv("SONIC_MAINNET_RPC", "https://mainnet.sonic.fantom.network/")
         }
-    except Exception as e:
-        logging.error(f"Kontrat bilgisi hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    }
 
 @app.post("/datasets/publish")
 async def publish_dataset(

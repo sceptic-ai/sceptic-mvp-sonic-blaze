@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { createParticles } from '../components/ClickParticles';
 import { LogoAnimation } from '../components/LogoAnimation';
+import { ContractInteraction } from '../components/ContractInteraction';
 
 const features = [
   {
@@ -94,6 +95,21 @@ function HomePage() {
             <div className="flex-1 relative w-full h-[500px]">
               <LogoAnimation className="opacity-100" />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Smart Contract Interaction Section */}
+      <section className="py-16 bg-secondary-100">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-center mb-8">Smart Contract Dashboard</h2>
+            <p className="text-center text-gray-600 mb-12">
+              Interact with our deployed ScepticSimple contract on the Sonic Network.
+              Connect your wallet to view and update the project name if you're the contract owner.
+            </p>
+            
+            <ContractInteraction />
           </div>
         </div>
       </section>

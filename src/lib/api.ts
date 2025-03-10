@@ -71,6 +71,31 @@ export interface CodeAnalysisRequest {
   code: string;
 }
 
+export interface ContractInfo {
+  contracts: {
+    sceptic_simple: {
+      address: string;
+      name: string;
+      description: string;
+    };
+    sceptic_token: {
+      address: string;
+      name: string;
+      description: string;
+    };
+    sceptic_audit: {
+      address: string;
+      name: string;
+      description: string;
+    };
+  };
+  network: {
+    name: string;
+    chainId: string;
+    rpcUrl: string;
+  };
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -362,6 +387,17 @@ export const publishDataset = async (data: FormData): Promise<DatasetPublishResu
     return result;
   } catch (error) {
     console.error('Veri seti yayınlama hatası:', error);
+    throw error;
+  }
+};
+
+// Fetch contract information
+export const getContractInfo = async (): Promise<ContractInfo> => {
+  try {
+    const response = await api.get('/api/contract-info');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching contract info:', error);
     throw error;
   }
 };
