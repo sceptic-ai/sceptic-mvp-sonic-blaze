@@ -1,0 +1,28 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# TensorFlow ve bilimsel hesaplama için gerekli sistem paketlerini yükle
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    libgomp1 \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Gerekli Python paketlerini yükle
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Uygulama kodunu kopyala
+COPY . .
+
+# Modeller klasörünü oluştur
+RUN mkdir -p /app/backend/ml/models
+
+EXPOSE 8000
+
+# FastAPI uygulamasını başlat
+CMD ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 

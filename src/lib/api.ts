@@ -1,4 +1,15 @@
 import axios from 'axios';
+import { ethers } from 'ethers';
+
+// API URL'yi ortam değişkeninden al veya varsayılan değeri kullan
+const API_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000';
+
+// TypeScript için ethereum window tanımı
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 export interface Analysis {
   id: string;
@@ -13,96 +24,344 @@ export interface Analysis {
   };
 }
 
+export interface AnalysisResult {
+  id: string;
+  repoUrl: string;
+  timestamp: string;
+  status: string;
+  result?: {
+    prediction: string;
+    confidence: number;
+    source: string;
+    source_probabilities?: Record<string, number>;
+    risk_score: number;
+    features?: Record<string, number>;
+    security_analysis?: {
+      vulnerabilities: Array<{
+        type: string;
+        name: string;
+        risk: string;
+        description: string;
+        score: number;
+      }>;
+      code_quality: Record<string, any>;
+      risk_level: number;
+      high_risk: boolean;
+      medium_risk: boolean;
+      low_risk: boolean;
+    };
+  };
+  blockchainTx?: string;
+  explorerUrl?: string;
+}
+
 export interface DailyMetrics {
   date: string;
   analysisCount: number;
   averageRiskScore: number;
 }
 
-// Local data storage
-const analyses: Analysis[] = [
-  {
-    id: '1',
-    contractAddress: '0x1234567890abcdef',
-    riskScore: 85,
-    timestamp: new Date().toISOString(),
-    status: 'completed',
-    findings: { high: 2, medium: 3, low: 1 }
+export interface GithubAnalysisRequest {
+  repo_url: string;
+  branch?: string;
+  file_path?: string;
+}
+
+export interface CodeAnalysisRequest {
+  code: string;
+}
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  {
-    id: '2',
-    contractAddress: '0xabcdef1234567890',
-    riskScore: 45,
-    timestamp: new Date().toISOString(),
-    status: 'completed',
-    findings: { high: 0, medium: 2, low: 3 }
-  }
-];
+});
 
-const dailyMetrics: DailyMetrics[] = Array.from({ length: 7 }, (_, i) => ({
-  date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  analysisCount: Math.floor(Math.random() * 50) + 10,
-  averageRiskScore: Math.floor(Math.random() * 40) + 30
-}));
-
-export const fetchAnalyses = async (): Promise<Analysis[]> => {
-  return Promise.resolve([...analyses]);
-};
-
-export const fetchDailyMetrics = async (): Promise<DailyMetrics[]> => {
-  return Promise.resolve([...dailyMetrics]);
-};
-
-export const createAnalysis = async (data: Partial<Analysis>): Promise<Analysis> => {
-  const newAnalysis: Analysis = {
-    id: Math.random().toString(36).substr(2, 9),
-    contractAddress: data.contractAddress || '',
-    riskScore: data.riskScore || 0,
-    timestamp: new Date().toISOString(),
-    status: 'completed',
-    findings: data.findings || { high: 0, medium: 0, low: 0 }
-  };
-  
-  analyses.push(newAnalysis);
-  return Promise.resolve(newAnalysis);
-};
-
-// Mock dataset storage
-const datasets: any[] = [];
-
-export const publishDataset = async (data: FormData): Promise<{ success: boolean; datasetId: string }> => {
+// GitHub repolarını analiz etme
+export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<AnalysisResult> => {
   try {
-    // Simulate API request delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Create a new dataset object
-    const dataset = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: data.get('title'),
-      description: data.get('description'),
-      language: data.get('language'),
-      sourceType: data.get('sourceType'),
-      category: data.get('category'),
-      price: data.get('price'),
-      downloads: '0',
-      rating: 0,
-      lastUpdated: new Date().toISOString().split('T')[0],
-      author: 'Current User',
-      files: Array.from(data.getAll('files')).map(file => ({
-        name: (file as File).name,
-        size: (file as File).size
-      }))
-    };
-
-    // Add to mock storage
-    datasets.push(dataset);
-
+    const response = await api.post('/analyze/github', data);
     return {
-      success: true,
-      datasetId: dataset.id
+      id: response.data.id,
+      repoUrl: response.data.repo_url,
+      timestamp: response.data.timestamp,
+      status: response.data.status,
+      result: response.data.result,
+      blockchainTx: response.data.blockchain_tx,
+      explorerUrl: response.data.explorer_url
     };
   } catch (error) {
-    console.error('Error publishing dataset:', error);
-    throw new Error('Failed to publish dataset');
+    console.error('GitHub repo analiz hatası:', error);
+    throw error;
+  }
+};
+
+// Doğrudan kod analizi yapma
+export const analyzeCode = async (data: CodeAnalysisRequest): Promise<any> => {
+  try {
+    const response = await api.post('/analyze/code', data);
+    return response.data;
+  } catch (error) {
+    console.error('Kod analiz hatası:', error);
+    throw error;
+  }
+};
+
+// Analiz sonuçlarını getirme
+export const getAnalysisResult = async (analysisId: string): Promise<AnalysisResult> => {
+  try {
+    const response = await api.get(`/analysis/${analysisId}`);
+    return {
+      id: response.data.id,
+      repoUrl: response.data.repo_url,
+      timestamp: response.data.timestamp,
+      status: response.data.status,
+      result: response.data.result,
+      blockchainTx: response.data.blockchain_tx,
+      explorerUrl: response.data.explorer_url
+    };
+  } catch (error) {
+    console.error('Analiz sonucu getirme hatası:', error);
+    throw error;
+  }
+};
+
+// Mevcut analiz listesini getirme - Backend API'dan gerçek verileri alıyor
+export const fetchAnalyses = async (): Promise<AnalysisResult[]> => {
+  try {
+    const response = await api.get('/analyses');
+    return response.data.map((item: any) => ({
+      id: item.id,
+      repoUrl: item.repo_url,
+      timestamp: item.timestamp,
+      status: item.status,
+      result: item.result,
+      blockchainTx: item.blockchain_tx,
+      explorerUrl: item.explorer_url
+    }));
+  } catch (error) {
+    console.error('Analizleri getirme hatası:', error);
+    // Hata durumunda mocklanmış veri dönebiliriz
+    return [
+      {
+        id: 'error_1',
+        repoUrl: 'Error fetching analyses',
+        timestamp: new Date().toISOString(),
+        status: 'failed',
+        result: {
+          risk_score: 0,
+          prediction: 'Unknown',
+          confidence: 0,
+          source: 'Error'
+        }
+      }
+    ];
+  }
+};
+
+// Günlük metrikleri hesaplama - Backend'den gelen verilerle oluştur
+export const fetchDailyMetrics = async (): Promise<DailyMetrics[]> => {
+  try {
+    // Gerçek analizleri al
+    const analyses = await fetchAnalyses();
+    
+    // Son 7 gün için günlük metrikler oluştur
+    const today = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      return date.toISOString().split('T')[0];
+    }).reverse();
+    
+    // Her gün için analiz sayısını ve ortalama risk skorunu hesapla
+    return last7Days.map(date => {
+      // O güne ait analizleri filtrele
+      const dailyAnalyses = analyses.filter(a => 
+        a.timestamp.split('T')[0] === date && 
+        a.status === 'completed' && 
+        a.result?.risk_score !== undefined
+      );
+      
+      // Analiz sayısı ve ortalama risk skoru
+      const analysisCount = dailyAnalyses.length;
+      const totalRiskScore = dailyAnalyses.reduce((sum, item) => 
+        sum + (item.result?.risk_score || 0), 0);
+      const averageRiskScore = analysisCount > 0 
+        ? Math.round(totalRiskScore / analysisCount) 
+        : 0;
+      
+      return {
+        date,
+        analysisCount,
+        averageRiskScore
+      };
+    });
+  } catch (error) {
+    console.error('Günlük metrikleri getirme hatası:', error);
+    
+    // Hata durumunda mocklanmış veri dön
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      return {
+        date: date.toISOString().split('T')[0],
+        analysisCount: Math.floor(Math.random() * 5),
+        averageRiskScore: Math.floor(Math.random() * 40) + 20
+      };
+    }).reverse();
+  }
+};
+
+// Return type genişletilmiş versiyonu
+interface VoteResult {
+  success: boolean;
+  transactionHash?: string;
+  blockNumber?: number;
+}
+
+// DAO oy verme - Blockchain'e bağlanacak
+export const voteOnAnalysis = async (analysisId: string, vote: 'approve' | 'reject'): Promise<VoteResult> => {
+  try {
+    // Kullanıcının cüzdanı bağlı olmalı
+    if (!window.ethereum) {
+      throw new Error('MetaMask veya uyumlu bir cüzdan bulunamadı');
+    }
+    
+    // Cüzdan bağlantısı iste
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.send('eth_requestAccounts', []);
+    
+    if (accounts.length === 0) {
+      throw new Error('Lütfen cüzdanınızı bağlayın');
+    }
+    
+    const signer = await provider.getSigner();
+    
+    // Kontrat ABI ve adresi
+    const response = await fetch('/api/contract-info');
+    const { auditContractAddress, auditContractAbi } = await response.json();
+    
+    // Kontrat oluştur
+    const contract = new ethers.Contract(auditContractAddress, auditContractAbi, signer);
+    
+    // Minimum stake miktarını kontrol et
+    const minStake = await contract.minStakeForVoting();
+    
+    // Kullanıcının token bakiyesini kontrol et
+    const tokenAddress = await contract.scepticToken();
+    const tokenContract = new ethers.Contract(
+      tokenAddress,
+      [
+        'function balanceOf(address owner) view returns (uint256)',
+        'function approve(address spender, uint256 amount) returns (bool)'
+      ],
+      signer
+    );
+    
+    // Kullanıcının bakiyesini kontrol et
+    const balance = await tokenContract.balanceOf(signer.getAddress());
+    
+    if (balance < minStake) {
+      throw new Error(`Oy vermek için en az ${ethers.formatUnits(minStake, 18)} SCEP token gerekli`);
+    }
+    
+    // Token kontrat izni
+    const approveTx = await tokenContract.approve(auditContractAddress, minStake);
+    await approveTx.wait();
+    
+    // Oy verme işlemi
+    const voteTx = await contract.voteOnAudit(
+      analysisId,
+      vote === 'approve', // true = approve, false = reject
+      minStake
+    );
+    
+    // İşlemin tamamlanmasını bekle
+    const receipt = await voteTx.wait();
+    
+    return { 
+      success: true, 
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber
+    };
+  } catch (error) {
+    console.error('Oy verme hatası:', error);
+    throw error;
+  }
+};
+
+// Dataset yayınlama sonucu
+interface DatasetPublishResult {
+  success: boolean;
+  datasetId: string;
+  name?: string;
+  description?: string;
+  fileSize?: number;
+  uploadDate?: string;
+  transactionHash?: string;
+}
+
+// Veri seti yayınlama endpoint'i
+export const publishDataset = async (data: FormData): Promise<DatasetPublishResult> => {
+  try {
+    // Backend'e verileri gönder
+    const response = await api.post('/datasets/publish', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    const result = response.data;
+    
+    // Cüzdan bağlantısı kontrol et
+    if (!window.ethereum) {
+      throw new Error('MetaMask veya uyumlu bir cüzdan bulunamadı');
+    }
+    
+    // Blockchain'e veri kaydı için cüzdan bağlantısı iste
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.send('eth_requestAccounts', []);
+    
+    if (accounts.length === 0) {
+      throw new Error('Lütfen cüzdanınızı bağlayın');
+    }
+    
+    const signer = await provider.getSigner();
+    
+    // Kontrat bilgilerini al
+    const contractResponse = await fetch('/api/contract-info');
+    const { auditContractAddress, auditContractAbi } = await contractResponse.json();
+    
+    // Kontrat oluştur
+    const contract = new ethers.Contract(auditContractAddress, auditContractAbi, signer);
+    
+    // Veri hash'ini hesapla
+    const dataHash = ethers.keccak256(
+      ethers.toUtf8Bytes(JSON.stringify({
+        id: result.datasetId,
+        name: data.get('name'),
+        description: data.get('description'),
+        timestamp: new Date().toISOString()
+      }))
+    );
+    
+    // Blockchain'e kaydet - storeAuditResult kullan (datasetId'yi auditId olarak kullan)
+    const tx = await contract.storeAuditResult(
+      result.datasetId,
+      dataHash,
+      50 // Sabit bir risk skoru (veri seti için anlamlı değil)
+    );
+    
+    await tx.wait();
+    
+    // Transaction bilgisini sonuca ekle
+    result.transactionHash = tx.hash;
+    
+    return result;
+  } catch (error) {
+    console.error('Veri seti yayınlama hatası:', error);
+    throw error;
   }
 };

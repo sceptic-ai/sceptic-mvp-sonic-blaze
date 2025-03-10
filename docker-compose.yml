@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - sceptic-network
+    environment:
+      - REACT_APP_API_URL=http://backend:8000
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - redis
+    networks:
+      - sceptic-network
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - SOLANA_NETWORK=devnet
+      - GITHUB_TOKEN=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
+      
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: celery -A backend.api.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - redis
+      - backend
+    networks:
+      - sceptic-network
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - SOLANA_NETWORK=devnet
+
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - sceptic-network
+    volumes:
+      - redis-data:/data
+
+networks:
+  sceptic-network:
+    driver: bridge
+
+volumes:
+  redis-data: 

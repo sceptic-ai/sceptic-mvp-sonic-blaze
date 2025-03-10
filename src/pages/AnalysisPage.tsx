@@ -1,17 +1,13 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  AlertCircle, 
-  CheckCircle, 
-  Clock,
-  Upload,
-  FileCode2,
-  Trash2
-} from 'lucide-react';
-import { fadeIn, slideUp, successConfetti } from '../lib/animations';
+import React, { useState, useRef, ReactNode } from 'react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { AnimatedButton } from '../components/AnimatedButton';
+import { truncateAddress } from '../lib/utils';
+import { analyzeGithubRepo, analyzeCode, getAnalysisResult, GithubAnalysisRequest, CodeAnalysisRequest } from '../lib/api';
+import { useWallet } from '../contexts/WalletContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Search } from 'lucide-react';
+import { successConfetti } from '../lib/animations';
 
 interface AnalysisFile {
   id: string;
@@ -21,37 +17,166 @@ interface AnalysisFile {
   status: 'pending' | 'analyzing' | 'completed' | 'error';
 }
 
+interface AnalysisFormData {
+  repositoryUrl: string;
+  code: string;
+  files: File[];
+}
+
+// Güvenlik analizi için tip tanımlamaları
+interface Vulnerability {
+  type: string;
+  name: string;
+  risk: string;
+  description: string;
+  score: number;
+}
+
+interface CodeQualityIssue {
+  value: number;
+  description: string;
+  score: number;
+}
+
+interface SecurityAnalysis {
+  vulnerabilities: Vulnerability[];
+  code_quality: Record<string, CodeQualityIssue>;
+  risk_level: number;
+  high_risk: boolean;
+  medium_risk: boolean;
+  low_risk: boolean;
+}
+
 function AnalysisPage() {
-  const [url, setUrl] = React.useState('');
-  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
-  const [files, setFiles] = React.useState<AnalysisFile[]>([]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [analysisMethod, setAnalysisMethod] = useState<'repository' | 'code' | 'file'>('repository');
+  const [formData, setFormData] = useState<AnalysisFormData>({
+    repositoryUrl: '',
+    code: '',
+    files: []
+  });
+  const [files, setFiles] = useState<AnalysisFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropAreaRef = useRef<HTMLDivElement>(null);
+  const { address } = useWallet();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url && files.length === 0) return;
+    setIsLoading(true);
+    setResult(null);
     
-    setIsAnalyzing(true);
-    
-    // Simulate analysis
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    setIsAnalyzing(false);
-    successConfetti();
+    try {
+      if (analysisMethod === 'repository') {
+        // GitHub repo analizi
+        if (!formData.repositoryUrl) {
+          toast.error('Lütfen bir GitHub URL\'si girin');
+          setIsLoading(false);
+          return;
+        }
+        
+        const request: GithubAnalysisRequest = {
+          repo_url: formData.repositoryUrl
+        };
+        
+        const response = await analyzeGithubRepo(request);
+        
+        if (response.status === 'pending') {
+          // Analiz tamamlanana kadar bekle ve sonuçları periyodik olarak kontrol et
+          const checkResult = async () => {
+            try {
+              const analysisResult = await getAnalysisResult(response.id);
+              if (analysisResult.status === 'completed') {
+                setResult(analysisResult.result);
+                setIsLoading(false);
+                successConfetti();
+                
+                // Blockchain'e kaydedildiyse bildiri göster
+                if (analysisResult.blockchainTx) {
+                  const toastContent = (
+                    <div>
+                      <p>Analiz sonucu blockchain'e kaydedildi</p>
+                      <a 
+                        href={analysisResult.explorerUrl || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        İşlemi görüntüle
+                      </a>
+                    </div>
+                  ) as ReactNode;
+                  
+                  toast.success(toastContent);
+                }
+                
+                return;
+              } else if (analysisResult.status === 'failed') {
+                toast.error('Analiz başarısız oldu');
+                setIsLoading(false);
+                return;
+              }
+              
+              // Hala işleniyor, 3 saniye sonra tekrar kontrol et
+              setTimeout(checkResult, 3000);
+            } catch (error) {
+              console.error('Analiz kontrol hatası:', error);
+              toast.error('Analiz durum kontrolünde hata oluştu');
+              setIsLoading(false);
+            }
+          };
+          
+          // İlk kontrolü 3 saniye sonra başlat
+          setTimeout(checkResult, 3000);
+        }
+      } else if (analysisMethod === 'code') {
+        // Doğrudan kod analizi
+        if (!formData.code) {
+          toast.error('Lütfen analiz edilecek kodu girin');
+          setIsLoading(false);
+          return;
+        }
+        
+        const request: CodeAnalysisRequest = {
+          code: formData.code
+        };
+        
+        const response = await analyzeCode(request);
+        setResult(response);
+        setIsLoading(false);
+        successConfetti();
+      } else {
+        // Dosya analizi henüz tam implementasyon yapılmadı
+        toast.error('Dosya analizi şu anda tam olarak desteklenmiyor');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Analiz hatası:', error);
+      toast.error('Analiz sırasında bir hata oluştu');
+      setIsLoading(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = Array.from(e.target.files || []);
-    
-    const newFiles: AnalysisFile[] = uploadedFiles.map(file => ({
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles) return;
+
+    const newFiles: AnalysisFile[] = Array.from(uploadedFiles).map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: formatFileSize(file.size),
-      type: file.type || 'text/plain',
+      type: file.type,
       status: 'pending'
     }));
 
     setFiles(prev => [...prev, ...newFiles]);
+    
+    // Form verilerine dosyaları ekle
+    setFormData(prev => ({
+      ...prev,
+      files: [...prev.files, ...Array.from(uploadedFiles)]
+    }));
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -63,195 +188,422 @@ function AnalysisPage() {
   };
 
   const removeFile = (id: string) => {
-    setFiles(prev => prev.filter(file => file.id !== id));
+    const fileIndex = files.findIndex(file => file.id === id);
+    if (fileIndex !== -1) {
+      const newFiles = [...files];
+      newFiles.splice(fileIndex, 1);
+      setFiles(newFiles);
+      
+      // Form verilerinden de dosyayı kaldır
+      setFormData(prev => ({
+        ...prev,
+        files: prev.files.filter((_, index) => index !== fileIndex)
+      }));
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const droppedFiles = Array.from(e.dataTransfer.files);
+    e.stopPropagation();
     
-    const newFiles: AnalysisFile[] = droppedFiles.map(file => ({
+    if (dropAreaRef.current) {
+      dropAreaRef.current.classList.remove('border-blue-600', 'bg-blue-50');
+    }
+    
+    const droppedFiles = e.dataTransfer.files;
+    if (!droppedFiles) return;
+    
+    const newFiles: AnalysisFile[] = Array.from(droppedFiles).map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: formatFileSize(file.size),
-      type: file.type || 'text/plain',
+      type: file.type,
       status: 'pending'
     }));
-
+    
     setFiles(prev => [...prev, ...newFiles]);
+    
+    // Form verilerine dosyaları ekle
+    setFormData(prev => ({
+      ...prev,
+      files: [...prev.files, ...Array.from(droppedFiles)]
+    }));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (dropAreaRef.current) {
+      dropAreaRef.current.classList.add('border-blue-600', 'bg-blue-50');
+    }
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dropAreaRef.current) {
+      dropAreaRef.current.classList.remove('border-blue-600', 'bg-blue-50');
+    }
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Blockchain adresi kopyalama işlevi
+  const copyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    toast.success('Adres kopyalandı');
+  };
+
+  // Analiz sonucu risk skoruna göre renk belirle
+  const getRiskColor = (score: number) => {
+    if (score >= 75) return 'text-red-600';
+    if (score >= 50) return 'text-orange-500';
+    if (score >= 25) return 'text-yellow-500';
+    return 'text-green-500';
+  };
+
+  const renderFeatures = () => {
+    if (!result?.features) return null;
+    
+    return (
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-2">Kod Özellikleri</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(result.features || {}).map(([key, value]: [string, any]) => (
+            <div key={key} className="bg-gray-50 p-3 rounded-lg">
+              <div className="text-sm text-gray-500">{key}</div>
+              <div className="font-medium">{value?.toString() || ""}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderVulnerabilities = () => {
+    if (!result?.security_analysis?.vulnerabilities?.length) return null;
+    
+    return (
+      <div className="mb-4">
+        <h4 className="text-md font-medium mb-2">Tespit Edilen Güvenlik Açıkları</h4>
+        <div className="space-y-2">
+          {result.security_analysis.vulnerabilities.map((vuln: Vulnerability, index: number) => (
+            <div key={index} className={`p-3 rounded-lg ${
+              vuln.risk === 'critical' ? 'bg-red-100 text-red-800' : 
+              vuln.risk === 'high' ? 'bg-orange-100 text-orange-800' :
+              vuln.risk === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              <div className="font-medium">{vuln.name}</div>
+              <div className="text-sm">{vuln.description}</div>
+              <div className="text-xs mt-1">Risk: {vuln.risk.toUpperCase()} (Skor: {vuln.score})</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderCodeQualityIssues = () => {
+    if (!result?.security_analysis?.code_quality) return null;
+    
+    const codeQualityEntries = Object.entries(result.security_analysis.code_quality);
+    if (codeQualityEntries.length === 0) return null;
+    
+    return (
+      <div className="mb-4">
+        <h4 className="text-md font-medium mb-2">Kod Kalitesi Sorunları</h4>
+        <div className="space-y-2">
+          {codeQualityEntries.map(([key, value]: [string, any]) => (
+            <div key={key} className="p-3 bg-gray-100 rounded-lg">
+              <div className="font-medium">{key}</div>
+              <div className="text-sm">{value?.description || ""}</div>
+              <div className="text-xs mt-1">Değer: {value?.value || 0} (Skor: {value?.score || 0})</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
-    <motion.div 
-      className="container mx-auto px-4 py-8"
-      {...fadeIn}
-    >
-      <motion.div 
-        className="max-w-4xl mx-auto"
-        variants={slideUp}
-        initial="initial"
-        animate="animate"
-      >
-        {/* Header */}
-        <motion.div 
-          className="text-center mb-12"
-          variants={slideUp}
-        >
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 text-primary-200">
-            Code Analysis
-          </h1>
-          <p className="text-xl text-secondary-950">
-            Submit your code repository or files for AI-powered analysis
-          </p>
-        </motion.div>
-
-        {/* Analysis Form */}
-        <motion.div 
-          className="card p-8 mb-8"
-          variants={slideUp}
-        >
-          <form onSubmit={handleSubmit}>
-            <div className="mb-6">
-              <label htmlFor="url" className="block text-sm font-medium text-secondary-950 mb-2">
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Kod Analizi</h1>
+      
+      {!address ? (
+        <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200 mb-6">
+          <h2 className="text-xl font-semibold text-yellow-700 mb-2">Cüzdan Gerekli</h2>
+          <p className="mb-4">Tam analiz işlemleri için lütfen cüzdanınızı bağlayın.</p>
+          <button 
+            onClick={() => navigate('/profile')} 
+            className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+          >
+            Cüzdan Bağla
+          </button>
+        </div>
+      ) : null}
+      
+      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="flex border-b mb-6 pb-4">
+          <button 
+            className={`mr-4 py-2 px-4 font-medium rounded-md ${analysisMethod === 'repository' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+            onClick={() => setAnalysisMethod('repository')}
+          >
+            GitHub Repo
+          </button>
+          <button 
+            className={`mr-4 py-2 px-4 font-medium rounded-md ${analysisMethod === 'code' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+            onClick={() => setAnalysisMethod('code')}
+          >
+            Kod Analizi
+          </button>
+          <button 
+            className={`py-2 px-4 font-medium rounded-md ${analysisMethod === 'file' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+            onClick={() => setAnalysisMethod('file')}
+          >
+            Dosya Yükle
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          {analysisMethod === 'repository' && (
+            <div className="mb-4 relative">
+              <label htmlFor="repositoryUrl" className="block text-sm font-medium text-gray-700 mb-1">
                 GitHub Repository URL
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  id="url"
-                  className="input pl-10"
+                  id="repositoryUrl"
+                  name="repositoryUrl"
+                  value={formData.repositoryUrl}
+                  onChange={handleInputChange}
                   placeholder="https://github.com/username/repo"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  className="w-full p-2 pl-10 border rounded-md"
                 />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-600" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               </div>
             </div>
-
-            {/* File Upload Section */}
-            <div className="mb-6">
+          )}
+          
+          {analysisMethod === 'code' && (
+            <div className="mb-4">
+              <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+                Analiz Edilecek Kod
+              </label>
+              <textarea
+                id="code"
+                name="code"
+                value={formData.code}
+                onChange={handleInputChange}
+                rows={12}
+                placeholder="Analiz edilecek kodu buraya yapıştırın..."
+                className="w-full p-2 border rounded-md font-mono"
+              ></textarea>
+            </div>
+          )}
+          
+          {analysisMethod === 'file' && (
+            <div className="mb-4">
               <div
-                className="border-2 border-dashed border-secondary-400 rounded-lg p-8 text-center"
+                ref={dropAreaRef}
+                className="border-2 border-dashed border-gray-300 rounded-md p-8 text-center transition-colors"
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
               >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  multiple
-                  onChange={handleFileUpload}
-                  accept=".js,.jsx,.ts,.tsx,.py,.java,.go,.rb,.php,.sol"
-                />
-                <Upload className="w-12 h-12 text-secondary-600 mx-auto mb-4" />
-                <p className="text-secondary-950 mb-2">Drag and drop your files here</p>
-                <p className="text-secondary-600 text-sm mb-4">or</p>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  onClick={() => fileInputRef.current?.click()}
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-600">Dosyaları buraya sürükleyin veya</p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Dosya Seçin
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+              
+              {files.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Yüklenen Dosyalar</h3>
+                  <ul className="divide-y divide-gray-200">
+                    {files.map(file => (
+                      <li key={file.id} className="py-2 flex justify-between items-center">
+                        <div className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                            <p className="text-xs text-gray-500">{file.size}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {file.status === 'pending' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 mr-2">
+                              Bekliyor
+                            </span>
+                          )}
+                          {file.status === 'analyzing' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 mr-2">
+                              Analiz Ediliyor
+                            </span>
+                          )}
+                          {file.status === 'completed' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 mr-2">
+                              Tamamlandı
+                            </span>
+                          )}
+                          {file.status === 'error' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 mr-2">
+                              Hata
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeFile(file.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-center">
+            <AnimatedButton
+              type="submit"
+              variant="primary"
+              disabled={isLoading}
+              className="px-6 py-2"
+            >
+              {isLoading ? (
+                <div className="flex items-center">
+                  <LoadingSpinner />
+                  <span className="ml-2">Analiz Ediliyor...</span>
+                </div>
+              ) : (
+                'Analiz Et'
+              )}
+            </AnimatedButton>
+          </div>
+        </form>
+      </div>
+      
+      {result && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold mb-4">Analiz Sonucu</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-2">Tespit</h3>
+              <div className="flex items-center">
+                <div className={`text-2xl font-bold ${result.prediction === 'AI' ? 'text-red-600' : 'text-green-600'}`}>
+                  {result.prediction === 'AI' ? 'Yapay Zeka' : 'İnsan'}
+                </div>
+                <div className="ml-4 text-gray-600">
+                  %{Math.round(result.confidence * 100)} Güven
+                </div>
+              </div>
+              {result.prediction === 'AI' && (
+                <div className="mt-2 text-sm text-gray-700">
+                  Olası Kaynak: <span className="font-semibold">{result.source}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-2">Risk Skoru</h3>
+              <div className={`text-2xl font-bold ${getRiskColor(result.risk_score)}`}>
+                {result.risk_score}/100
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                <div 
+                  className="h-2.5 rounded-full" 
+                  style={{
+                    width: `${result.risk_score}%`,
+                    backgroundColor: result.risk_score >= 75 ? '#DC2626' : 
+                                      result.risk_score >= 50 ? '#F97316' : 
+                                      result.risk_score >= 25 ? '#FBBF24' : '#10B981'
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+          
+          {renderVulnerabilities()}
+          
+          {renderCodeQualityIssues()}
+          
+          {result.blockchain_tx && (
+            <div className="border-t pt-4 mt-6">
+              <h3 className="text-lg font-semibold mb-2">Blockchain Kaydı</h3>
+              <div className="flex items-center">
+                <span className="text-gray-600 mr-2">İşlem:</span>
+                <span className="font-mono text-sm">{truncateAddress(result.blockchain_tx)}</span>
+                <button 
+                  onClick={() => copyAddress(result.blockchain_tx)}
+                  className="ml-2 text-blue-600 hover:text-blue-800"
                 >
-                  Browse Files
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
                 </button>
-                <p className="text-secondary-600 text-sm mt-4">
-                  Supported files: .js, .jsx, .ts, .tsx, .py, .java, .go, .rb, .php, .sol
+                {result.explorer_url && (
+                  <a 
+                    href={result.explorer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-4 text-blue-600 hover:text-blue-800 flex items-center"
+                  >
+                    <span>Görüntüle</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+              </div>
+              
+              <div className="mt-4 text-sm">
+                <p className="mb-2">
+                  Bu kod analizi, dolandırıcılık veya güvenlik riski tespiti nedeniyle 
+                  <span className="font-semibold"> Sonic Network</span> blockchain'inde kalıcı olarak saklanmıştır.
+                </p>
+                <p>
+                  Bu kaydın değiştirilmesi veya silinmesi mümkün değildir ve herkes tarafından doğrulanabilir durumdadır.
                 </p>
               </div>
             </div>
-
-            {/* File List with animations */}
-            <AnimatePresence>
-              {files.length > 0 && (
-                <motion.div 
-                  className="mb-6"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                >
-                  <h3 className="text-lg font-bold mb-4 text-primary-200">Files to Analyze</h3>
-                  <div className="space-y-3">
-                    {files.map((file) => (
-                      <motion.div
-                        key={file.id}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: 20, opacity: 0 }}
-                        className="flex items-center justify-between p-3 bg-secondary-200 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <FileCode2 className="w-5 h-5 text-primary-200" />
-                          <div>
-                            <p className="text-secondary-950 font-medium">{file.name}</p>
-                            <p className="text-sm text-secondary-600">{file.size}</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(file.id)}
-                          className="text-secondary-600 hover:text-secondary-950 transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatedButton
-              type="submit"
-              className="w-full"
-              disabled={isAnalyzing}
-            >
-              {isAnalyzing ? (
-                <div className="flex items-center justify-center">
-                  <LoadingSpinner />
-                  <span className="ml-2">Analyzing...</span>
-                </div>
-              ) : (
-                'Start Analysis'
-              )}
-            </AnimatedButton>
-          </form>
-        </motion.div>
-
-        {/* Analysis Tips with animations */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          variants={slideUp}
-        >
-          <div className="card p-6">
-            <h2 className="font-bold text-lg mb-4 flex items-center text-primary-200">
-              <CheckCircle className="w-5 h-5 text-primary-200 mr-2" />
-              Best Practices
-            </h2>
-            <ul className="space-y-2 text-secondary-950">
-              <li>Use version-controlled repositories</li>
-              <li>Include all project dependencies</li>
-              <li>Provide complete documentation</li>
-              <li>Follow language-specific conventions</li>
-            </ul>
-          </div>
-          <div className="card p-6">
-            <h2 className="font-bold text-lg mb-4 flex items-center text-primary-200">
-              <AlertCircle className="w-5 h-5 text-primary-200 mr-2" />
-              Common Issues
-            </h2>
-            <ul className="space-y-2 text-secondary-950">
-              <li>Missing dependency management</li>
-              <li>Inconsistent code style</li>
-              <li>Poor error handling</li>
-              <li>Security vulnerabilities</li>
-            </ul>
-          </div>
-        </motion.div>
-      </motion.div>
-    </motion.div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
