@@ -373,10 +373,11 @@ def train_model():
         real_code_samples = []
         real_labels = []
         
+        # Process standard CSV files
         for filename in os.listdir(csv_data_path):
-            if filename.endswith('.csv'):
+            if filename.endswith('.csv') and not filename.startswith('merged_'):
                 csv_path = os.path.join(csv_data_path, filename)
-                logging.info(f"Loading real-world data from {csv_path}")
+                logging.info(f"Loading data from {csv_path}")
                 try:
                     df = pd.read_csv(csv_path)
                     
@@ -394,22 +395,64 @@ def train_model():
                 except Exception as e:
                     logging.error(f"Error loading CSV file {filename}: {str(e)}")
         
-        # Generate synthetic data
-        synthetic_code_samples, synthetic_labels = generate_synthetic_data(5000)  # Increased sample size
+        # Process merged AI and human files
+        ai_file_path = os.path.join(csv_data_path, 'merged_AI_files.csv')
+        human_file_path = os.path.join(csv_data_path, 'merged_human_files.csv')
+        
+        try:
+            # Load AI samples
+            if os.path.exists(ai_file_path):
+                ai_df = pd.read_csv(ai_file_path)
+                if 'Content' in ai_df.columns:
+                    ai_samples = ai_df['Content'].dropna().tolist()
+                    # Add all as AI-generated (label 1)
+                    real_code_samples.extend(ai_samples)
+                    real_labels.extend([1] * len(ai_samples))
+                    logging.info(f"Added {len(ai_samples)} AI samples from merged_AI_files.csv")
+                else:
+                    logging.warning("merged_AI_files.csv does not have 'Content' column")
+            else:
+                logging.warning(f"AI samples file not found: {ai_file_path}")
+                
+            # Load human samples
+            if os.path.exists(human_file_path):
+                human_df = pd.read_csv(human_file_path)
+                if 'Content' in human_df.columns:
+                    human_samples = human_df['Content'].dropna().tolist()
+                    # Add all as human-written (label 0)
+                    real_code_samples.extend(human_samples)
+                    real_labels.extend([0] * len(human_samples))
+                    logging.info(f"Added {len(human_samples)} human samples from merged_human_files.csv")
+                else:
+                    logging.warning("merged_human_files.csv does not have 'Content' column")
+            else:
+                logging.warning(f"Human samples file not found: {human_file_path}")
+                
+        except Exception as e:
+            logging.error(f"Error loading merged code files: {str(e)}")
+            
+        # Log dataset distribution
+        if len(real_code_samples) > 0:
+            ai_count = sum(real_labels)
+            human_count = len(real_labels) - ai_count
+            logging.info(f"Dataset distribution: {ai_count} AI, {human_count} human")
+        
+        # Generate synthetic data to supplement if needed
+        synthetic_code_samples, synthetic_labels = generate_synthetic_data(3000)  # Reduced sample size since we have real data
         
         # Combine real data with synthetic data
         if len(real_code_samples) > 0:
             logging.info(f"Combining {len(real_code_samples)} real samples with {len(synthetic_code_samples)} synthetic samples")
             
-            # Balance the dataset
-            human_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 0]
+            # Balance the dataset if needed
             ai_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 1]
+            human_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 0]
             
-            logging.info(f"Real data distribution: {len(human_samples)} human, {len(ai_samples)} AI")
+            logging.info(f"Real data distribution: {len(ai_samples)} AI, {len(human_samples)} human")
             
             # Add real samples to the training data
-            code_samples = synthetic_code_samples + real_code_samples
-            labels = synthetic_labels + real_labels
+            code_samples = real_code_samples + synthetic_code_samples
+            labels = real_labels + synthetic_labels
         else:
             logging.info("No real data found, using only synthetic data")
             code_samples = synthetic_code_samples
