@@ -180,3 +180,36 @@ contract ScepticSimple {
 ```
 
 This contract has been deployed and serves as an example of how this app can integrate with blockchain contracts on the Sonic Network.
+
+## CSV Training Data
+
+Sceptic AI now supports training the AI detection model using CSV data. This feature enhances the model's ability to distinguish between human-written and AI-generated code.
+
+### CSV Format
+
+The CSV files should be placed in the `data/` directory and have the following columns:
+- `code`: The source code sample
+- `is_ai_generated`: Binary label (1 for AI-generated, 0 for human-written)
+- `language` (optional): Programming language of the code
+
+Example CSV file content:
+```csv
+code,is_ai_generated,language
+"def hello_world():\n    print('Hello, world!')",1,python
+"function add(a, b) {\n    return a + b;\n}",0,javascript
+```
+
+### Training the Model
+
+To train the model with your data:
+```bash
+cd backend
+python train.py
+```
+
+Use the `--force` flag to retrain an existing model:
+```bash
+python train.py --force
+```
+
+Learn more in the [data/README.md](data/README.md) file.

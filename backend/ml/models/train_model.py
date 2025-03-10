@@ -13,6 +13,8 @@ import joblib
 import logging
 import random
 from collections import defaultdict
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 # Logging konfigürasyonu
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -347,86 +349,136 @@ def build_model(input_shape, feature_shape):
     return model
 
 def train_model():
-    """Train the model with improved architecture and synthetic data"""
-    logging.info("Starting model training with improved architecture...")
+    """
+    Train a code analysis model for AI detection
     
-    # Set random seed for reproducibility
-    set_random_seed()
+    Returns:
+        model: Trained model
+        tokenizer: Fitted tokenizer
+        scaler: Fitted scaler
+    """
+    try:
+        # Set up logging
+        logging.basicConfig(level=logging.INFO)
+        
+        # Create output directory if it doesn't exist
+        model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+        os.makedirs(model_dir, exist_ok=True)
+        
+        # Set random seed for reproducibility
+        set_random_seed()
+        
+        # Load CSV data if available
+        csv_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data')
+        real_code_samples = []
+        real_labels = []
+        
+        for filename in os.listdir(csv_data_path):
+            if filename.endswith('.csv'):
+                csv_path = os.path.join(csv_data_path, filename)
+                logging.info(f"Loading real-world data from {csv_path}")
+                try:
+                    df = pd.read_csv(csv_path)
+                    
+                    # Check required columns
+                    if 'code' in df.columns and 'is_ai_generated' in df.columns:
+                        valid_samples = df['code'].dropna().tolist()
+                        valid_labels = df['is_ai_generated'].dropna().astype(int).tolist()
+                        
+                        if len(valid_samples) > 0:
+                            real_code_samples.extend(valid_samples)
+                            real_labels.extend(valid_labels)
+                            logging.info(f"Added {len(valid_samples)} samples from {filename}")
+                    else:
+                        logging.warning(f"CSV file {filename} does not have required columns (code, is_ai_generated)")
+                except Exception as e:
+                    logging.error(f"Error loading CSV file {filename}: {str(e)}")
+        
+        # Generate synthetic data
+        synthetic_code_samples, synthetic_labels = generate_synthetic_data(5000)  # Increased sample size
+        
+        # Combine real data with synthetic data
+        if len(real_code_samples) > 0:
+            logging.info(f"Combining {len(real_code_samples)} real samples with {len(synthetic_code_samples)} synthetic samples")
+            
+            # Balance the dataset
+            human_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 0]
+            ai_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 1]
+            
+            logging.info(f"Real data distribution: {len(human_samples)} human, {len(ai_samples)} AI")
+            
+            # Add real samples to the training data
+            code_samples = synthetic_code_samples + real_code_samples
+            labels = synthetic_labels + real_labels
+        else:
+            logging.info("No real data found, using only synthetic data")
+            code_samples = synthetic_code_samples
+            labels = synthetic_labels
+        
+        # Convert labels to numpy array
+        labels = np.array(labels)
+        
+        # Extract features from code
+        logging.info("Extracting features from code...")
+        features = np.array([extract_code_features(code) for code in code_samples])
+        
+        # Create and fit scaler
+        scaler = StandardScaler()
+        scaled_features = scaler.fit_transform(features)
+        
+        # Create and fit tokenizer
+        tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token='<OOV>')
+        tokenizer.fit_on_texts(code_samples)
+        
+        # Convert text to sequences
+        sequences = tokenizer.texts_to_sequences(code_samples)
+        padded_sequences = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
+        
+        # Build the model
+        model = build_model(padded_sequences.shape[1:], scaled_features.shape[1:])
+        
+        # Split the dataset
+        X_text_train, X_text_test, X_features_train, X_features_test, y_train, y_test = train_test_split(
+            padded_sequences, scaled_features, labels, test_size=0.2, random_state=42, stratify=labels
+        )
+        
+        # Train the model
+        logging.info("Training model...")
+        history = model.fit(
+            [X_text_train, X_features_train], 
+            y_train,
+            validation_data=([X_text_test, X_features_test], y_test),
+            epochs=10,
+            batch_size=32,
+            verbose=1
+        )
+        
+        # Evaluate the model
+        loss, accuracy = model.evaluate([X_text_test, X_features_test], y_test, verbose=0)
+        logging.info(f"Test accuracy: {accuracy:.4f}")
+        
+        # Save the model
+        model_path = os.path.join(model_dir, 'code_analysis_model.h5')
+        model.save(model_path)
+        logging.info(f"Model saved to {model_path}")
+        
+        # Save the tokenizer
+        tokenizer_json = tokenizer.to_json()
+        tokenizer_path = os.path.join(model_dir, 'tokenizer.json')
+        with open(tokenizer_path, 'w') as f:
+            f.write(tokenizer_json)
+        logging.info(f"Tokenizer saved to {tokenizer_path}")
+        
+        # Save the scaler
+        scaler_path = os.path.join(model_dir, 'scaler.pkl')
+        joblib.dump(scaler, scaler_path)
+        logging.info(f"Scaler saved to {scaler_path}")
+        
+        return model, tokenizer, scaler
     
-    # Generate synthetic data
-    code_samples, labels = generate_synthetic_data(2000)  # Increased sample size
-    
-    # Extract features
-    features = np.array([extract_code_features(code) for code in code_samples])
-    
-    # Create and configure tokenizer
-    tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token='<OOV>', filters='')
-    tokenizer.fit_on_texts(code_samples)
-    
-    # Convert text to sequences
-    sequences = tokenizer.texts_to_sequences(code_samples)
-    padded_sequences = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
-    
-    # Scale features
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(features)
-    
-    # Split data into training and test sets
-    X_text_train, X_text_test, X_feat_train, X_feat_test, y_train, y_test = train_test_split(
-        padded_sequences, scaled_features, labels, test_size=0.2, random_state=42, stratify=labels
-    )
-    
-    # Build model
-    model = build_model(MAX_SEQUENCE_LENGTH, scaled_features.shape[1])
-    
-    # Early stopping to prevent overfitting
-    early_stopping = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss',
-        patience=3,
-        restore_best_weights=True
-    )
-    
-    # Model checkpoint to save best model
-    model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        MODEL_PATH,
-        monitor='val_loss',
-        save_best_only=True,
-        verbose=1
-    )
-    
-    # Train model
-    history = model.fit(
-        [X_text_train, X_feat_train],
-        y_train,
-        validation_data=([X_text_test, X_feat_test], y_test),
-        epochs=10,  # Increased epochs
-        batch_size=32,
-        callbacks=[early_stopping, model_checkpoint]
-    )
-    
-    # Evaluate model
-    results = model.evaluate([X_text_test, X_feat_test], y_test)
-    logging.info(f"Test set evaluation: {dict(zip(model.metrics_names, results))}")
-    
-    # More detailed evaluation
-    y_pred = (model.predict([X_text_test, X_feat_test]) > 0.5).astype(int).flatten()
-    logging.info(f"Classification report:\n{classification_report(y_test, y_pred)}")
-    logging.info(f"Confusion matrix:\n{confusion_matrix(y_test, y_pred)}")
-    
-    # Save tokenizer and scaler
-    tokenizer_json = tokenizer.to_json()
-    with open(TOKENIZER_PATH, 'w') as f:
-        json.dump(tokenizer_json, f)
-    logging.info(f"Tokenizer saved to {TOKENIZER_PATH}")
-    
-    joblib.dump(scaler, SCALER_PATH)
-    logging.info(f"Scaler saved to {SCALER_PATH}")
-    
-    # Print model summary
-    model.summary()
-    
-    return model, tokenizer, scaler
+    except Exception as e:
+        logging.error(f"Error in train_model: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     train_model()

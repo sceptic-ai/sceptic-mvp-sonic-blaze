@@ -3,7 +3,7 @@ import { getProjectName, updateProjectName, getContractOwner, isContractOwner } 
 import { AnimatedButton } from './AnimatedButton';
 import { useWallet } from '../contexts/WalletContext';
 import { toast } from 'sonner';
-import { updateContractProjectName } from '../lib/api';
+import { updateContractProjectName, getContractInfo } from '../lib/api';
 
 // Export types for TypeScript
 export interface ContractInteractionProps {}
@@ -48,21 +48,20 @@ export function ContractInteraction(): ReactElement {
 
   const syncWithBackend = async (projectName: string, txHash: string): Promise<void> => {
     try {
-      if (!import.meta.env.VITE_CONTRACT_ADDRESS) {
-        console.warn('Contract address not found in environment variables');
-        return;
-      }
+      const networkInfo = await getContractInfo();
+      const network = networkInfo?.network?.name || 'Sonic Network';
       
       await updateContractProjectName(
-        import.meta.env.VITE_CONTRACT_ADDRESS as string,
-        projectName,
+        import.meta.env.VITE_CONTRACT_ADDRESS,
+        'simple',
+        network,
         txHash
       );
       
-      console.log('Contract information synchronized with backend');
+      toast.success('Contract update synchronized with backend');
     } catch (error) {
-      console.error('Failed to sync with backend:', error);
-      // Don't show error to user as this is a background sync
+      console.error('Backend sync error:', error);
+      toast.error('Failed to synchronize with backend');
     }
   };
 

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { ethers } from 'ethers';
 
-// API URL'yi ortam değişkeninden al veya varsayılan değeri kullan
-const API_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000';
+// Base API configuration
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // TypeScript için ethereum window tanımı
 declare global {
@@ -50,6 +50,7 @@ export interface AnalysisResult {
       medium_risk: boolean;
       low_risk: boolean;
     };
+    processing_time_ms?: number;
   };
   blockchainTx?: string;
   explorerUrl?: string;
@@ -61,14 +62,15 @@ export interface DailyMetrics {
   averageRiskScore: number;
 }
 
+// Updated API request types to match the new backend
 export interface GithubAnalysisRequest {
-  repo_url: string;
-  branch?: string;
-  file_path?: string;
+  url: string;
+  max_files?: number;
 }
 
 export interface CodeAnalysisRequest {
   code: string;
+  language?: string;
 }
 
 export interface ContractInfo {
@@ -97,57 +99,39 @@ export interface ContractInfo {
 }
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// GitHub repolarını analiz etme
-export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<AnalysisResult> => {
+// Updated functions with new API endpoints
+export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<any> => {
   try {
     const response = await api.post('/analyze/github', data);
-    return {
-      id: response.data.id,
-      repoUrl: response.data.repo_url,
-      timestamp: response.data.timestamp,
-      status: response.data.status,
-      result: response.data.result,
-      blockchainTx: response.data.blockchain_tx,
-      explorerUrl: response.data.explorer_url
-    };
-  } catch (error) {
-    console.error('GitHub repo analiz hatası:', error);
-    throw error;
-  }
-};
-
-// Doğrudan kod analizi yapma
-export const analyzeCode = async (data: CodeAnalysisRequest): Promise<any> => {
-  try {
-    const response = await api.post('/analyze/code', data);
     return response.data;
   } catch (error) {
-    console.error('Kod analiz hatası:', error);
+    console.error('Error analyzing GitHub repository:', error);
     throw error;
   }
 };
 
-// Analiz sonuçlarını getirme
-export const getAnalysisResult = async (analysisId: string): Promise<AnalysisResult> => {
+export const analyzeCode = async (data: CodeAnalysisRequest): Promise<any> => {
   try {
-    const response = await api.get(`/analysis/${analysisId}`);
-    return {
-      id: response.data.id,
-      repoUrl: response.data.repo_url,
-      timestamp: response.data.timestamp,
-      status: response.data.status,
-      result: response.data.result,
-      blockchainTx: response.data.blockchain_tx,
-      explorerUrl: response.data.explorer_url
-    };
+    const response = await api.post('/analyze', data);
+    return response.data;
   } catch (error) {
-    console.error('Analiz sonucu getirme hatası:', error);
+    console.error('Error analyzing code:', error);
+    throw error;
+  }
+};
+
+export const getAnalysisResult = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.get(`/analysis/${requestId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching analysis result for ${requestId}:`, error);
     throw error;
   }
 };
@@ -402,17 +386,29 @@ export const getContractInfo = async (): Promise<ContractInfo> => {
   }
 };
 
+// Updated contract update interface to match the backend
+export interface ContractUpdateRequest {
+  address: string;
+  contract_type: string;
+  network: string;
+  transaction_hash?: string;
+  deployer?: string;
+  verified?: boolean;
+}
+
 // Update contract information
 export const updateContractProjectName = async (
   contractAddress: string,
-  projectName: string,
-  txHash: string
-): Promise<{ success: boolean; message: string }> => {
+  contractType: string,
+  network: string,
+  txHash?: string
+): Promise<{ status: string; message: string }> => {
   try {
-    const response = await api.post('/api/contract-update', {
-      contract_address: contractAddress,
-      project_name: projectName,
-      tx_hash: txHash
+    const response = await api.post('/contract/update', {
+      address: contractAddress,
+      contract_type: contractType,
+      network: network,
+      transaction_hash: txHash
     });
     return response.data;
   } catch (error) {
@@ -422,16 +418,19 @@ export const updateContractProjectName = async (
 };
 
 export interface ContractUpdate {
-  contract_address: string;
-  project_name: string;
-  tx_hash: string;
+  address: string;
+  contract_type: string;
+  network: string;
   timestamp: string;
+  transaction_hash?: string;
+  deployer?: string;
+  verified?: boolean;
 }
 
-export const getContractUpdates = async (): Promise<ContractUpdate[]> => {
+export const getContractUpdates = async (limit: number = 10): Promise<ContractUpdate[]> => {
   try {
-    const response = await api.get('/api/contract-updates');
-    return response.data.updates;
+    const response = await api.get(`/contract/updates?limit=${limit}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching contract updates:', error);
     return [];

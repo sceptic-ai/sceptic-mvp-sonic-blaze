@@ -77,75 +77,103 @@ function AnalysisPage() {
         }
         
         const request: GithubAnalysisRequest = {
-          repo_url: formData.repositoryUrl
+          url: formData.repositoryUrl,
+          max_files: 15
         };
         
         const response = await analyzeGithubRepo(request);
         
-        if (response.status === 'pending') {
+        if (response.status === 'processing') {
           // Analiz tamamlanana kadar bekle ve sonuçları periyodik olarak kontrol et
           const checkResult = async () => {
             try {
-              const analysisResult = await getAnalysisResult(response.id);
+              const analysisResult = await getAnalysisResult(response.request_id);
               if (analysisResult.status === 'completed') {
                 setResult(analysisResult.result);
                 setIsLoading(false);
                 successConfetti();
-                
-                // Blockchain'e kaydedildiyse bildiri göster
-                if (analysisResult.blockchainTx) {
-                  const toastContent = (
-                    <div>
-                      <p>Analiz sonucu blockchain'e kaydedildi</p>
-                      <a 
-                        href={analysisResult.explorerUrl || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-500 underline"
-                      >
-                        İşlemi görüntüle
-                      </a>
-                    </div>
-                  ) as ReactNode;
-                  
-                  toast.success(toastContent);
-                }
-                
                 return;
-              } else if (analysisResult.status === 'failed') {
-                toast.error('Analiz başarısız oldu');
+              } else if (analysisResult.status === 'error') {
+                toast.error(`Analiz hatası: ${analysisResult.error || 'Bilinmeyen hata'}`);
                 setIsLoading(false);
                 return;
               }
               
-              // Hala işleniyor, 3 saniye sonra tekrar kontrol et
-              setTimeout(checkResult, 3000);
+              // Sonuç hazır değilse 2 saniye sonra tekrar kontrol et
+              setTimeout(checkResult, 2000);
             } catch (error) {
-              console.error('Analiz kontrol hatası:', error);
-              toast.error('Analiz durum kontrolünde hata oluştu');
+              console.error('Analiz sonucu kontrol hatası:', error);
+              toast.error('Analiz sonucu kontrol edilirken bir hata oluştu.');
               setIsLoading(false);
             }
           };
           
-          // İlk kontrolü 3 saniye sonra başlat
-          setTimeout(checkResult, 3000);
+          // İlk kontrolü başlat
+          setTimeout(checkResult, 2000);
+        } else if (response.status === 'completed') {
+          setResult(response.result);
+          setIsLoading(false);
+          successConfetti();
+        } else {
+          toast.error('Analiz başlatılırken bir hata oluştu.');
+          setIsLoading(false);
         }
       } else if (analysisMethod === 'code') {
         // Doğrudan kod analizi
-        if (!formData.code) {
-          toast.error('Lütfen analiz edilecek kodu girin');
+        if (!formData.code.trim()) {
+          toast.error('Lütfen analiz edilecek kod girin');
           setIsLoading(false);
           return;
         }
         
-        const request: CodeAnalysisRequest = {
-          code: formData.code
-        };
-        
-        const response = await analyzeCode(request);
-        setResult(response);
-        setIsLoading(false);
-        successConfetti();
+        try {
+          const request: CodeAnalysisRequest = {
+            code: formData.code,
+            language: detectLanguage(formData.code)
+          };
+          
+          const response = await analyzeCode(request);
+          
+          if (response.status === 'processing') {
+            // Analiz tamamlanana kadar bekle ve sonuçları periyodik olarak kontrol et
+            const checkResult = async () => {
+              try {
+                const analysisResult = await getAnalysisResult(response.request_id);
+                if (analysisResult.status === 'completed') {
+                  setResult(analysisResult.result);
+                  setIsLoading(false);
+                  successConfetti();
+                  return;
+                } else if (analysisResult.status === 'error') {
+                  toast.error(`Analiz hatası: ${analysisResult.error || 'Bilinmeyen hata'}`);
+                  setIsLoading(false);
+                  return;
+                }
+                
+                // Sonuç hazır değilse 2 saniye sonra tekrar kontrol et
+                setTimeout(checkResult, 2000);
+              } catch (error) {
+                console.error('Analiz sonucu kontrol hatası:', error);
+                toast.error('Analiz sonucu kontrol edilirken bir hata oluştu.');
+                setIsLoading(false);
+              }
+            };
+            
+            // İlk kontrolü başlat
+            setTimeout(checkResult, 2000);
+          } else if (response.status === 'completed') {
+            setResult(response.result);
+            setIsLoading(false);
+            successConfetti();
+          } else {
+            toast.error('Analiz başlatılırken bir hata oluştu.');
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error('Kod analiz hatası:', error);
+          toast.error('Kod analiz edilirken bir hata oluştu.');
+          setIsLoading(false);
+        }
       } else {
         // Dosya analizi henüz tam implementasyon yapılmadı
         toast.error('Dosya analizi şu anda tam olarak desteklenmiyor');
@@ -330,6 +358,35 @@ function AnalysisPage() {
         </div>
       </div>
     );
+  };
+
+  // Detect programming language from code
+  const detectLanguage = (code: string): string => {
+    // Check for common language indicators
+    if (code.includes('import React') || code.includes('function') && code.includes('return') && (code.includes('jsx') || code.includes('<div'))) {
+      return 'javascript';
+    }
+    if (code.includes('import') && code.includes('from') && (code.includes('interface') || code.includes('type '))) {
+      return 'typescript';
+    }
+    if (code.includes('class') && code.includes('public') && code.includes('{') && code.includes('}')) {
+      return 'java';
+    }
+    if (code.includes('def ') && code.includes(':') && !code.includes('{')) {
+      return 'python';
+    }
+    if (code.includes('pragma solidity') || code.includes('contract ')) {
+      return 'solidity';
+    }
+    if (code.includes('fn ') && code.includes('->') && code.includes('let mut')) {
+      return 'rust';
+    }
+    if (code.includes('#include') && (code.includes('<stdio.h>') || code.includes('<iostream>'))) {
+      return code.includes('class') ? 'cpp' : 'c';
+    }
+    
+    // Default to generic
+    return 'generic';
   };
 
   return (
