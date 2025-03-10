@@ -21,7 +21,16 @@ import { WalletModal } from './components/WalletModal';
 // Context
 import { WalletProvider } from './contexts/WalletContext';
 
-const queryClient = new QueryClient();
+// Initialize React Query with optimal settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (

@@ -45,6 +45,11 @@ SONIC_NETWORK=testnet
 # Proje ayarları
 NODE_ENV=development
 DEBUG=true
+
+# Contract Settings
+https://testnet.soniclabs.com/tx/0x611de8acc2be04b7f83057335432c9c7d09391722830c246d72c9bfd92109a46
+VITE_CONTRACT_ADDRESS=0xF9978A310aD03151E4B09d8D03b30F863eaD38eC
+Tx Hash: 0x611de8acc2be04b7f83057335432c9c7d09391722830c246d72c9bfd92109a46
 ```
 
 Replace placeholder values with your own keys.
@@ -124,3 +129,52 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License.
+
+## Working with the Deployed Contract
+
+This project now includes full integration with your deployed `ScepticSimple` contract on the Sonic Network. Here's how it works:
+
+1. **Contract Interaction**: The application provides a UI for interacting with your deployed contract in the Dashboard. You can view the current project name and update it if you're the contract owner.
+
+2. **Network Support**: The wallet integration supports connecting to the Sonic Network and automatically prompts the user to switch networks if needed.
+
+3. **Backend Integration**: When contract changes are made (like updating the project name), the backend records these changes and can track the transaction history.
+
+4. **Environment Variables**: The contract address is read from the .env file. Make sure your `.env` file contains:
+
+```
+VITE_CONTRACT_ADDRESS=0xYourDeployedContractAddress
+```
+
+### Interacting with the Contract
+
+1. Connect your MetaMask wallet to the Sonic Network
+2. Go to the Dashboard page
+3. You'll see the current contract state and, if you're the owner, you'll be able to update the project name
+4. All contract interactions are recorded and displayed in the "Recent Contract Updates" section
+
+### Smart Contract Implementation
+
+The core smart contract is a simple implementation that stores a project name and allows only the owner to update it:
+
+```solidity
+// ScepticSimple.sol
+pragma solidity ^0.8.28;
+
+contract ScepticSimple {
+    string public projectName;
+    address public owner;
+    
+    constructor(string memory _name) {
+        projectName = _name;
+        owner = msg.sender;
+    }
+    
+    function updateName(string memory _newName) external {
+        require(msg.sender == owner, "Only owner can update");
+        projectName = _newName;
+    }
+}
+```
+
+This contract has been deployed and serves as an example of how this app can integrate with blockchain contracts on the Sonic Network.

@@ -26,6 +26,7 @@ import { fetchAnalyses, fetchDailyMetrics } from '../lib/api';
 import { useWallet } from '../contexts/WalletContext';
 import { NetworkInfo } from '../components/NetworkInfo';
 import { ContractInteraction } from '../components/ContractInteraction';
+import { ContractUpdates } from '../components/ContractUpdates';
 
 ChartJS.register(
   CategoryScale,
@@ -180,10 +181,15 @@ function DashboardPage() {
           </div>
         </div>
         
-        <div>
+        <div className="space-y-6">
           <NetworkInfo />
           <ContractInteraction />
         </div>
+      </div>
+
+      {/* Contract Updates Section */}
+      <div className="mb-8">
+        <ContractUpdates />
       </div>
 
       {/* Recent Analyses Table */}

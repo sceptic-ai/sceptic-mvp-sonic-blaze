@@ -96,6 +96,11 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 async def startup_event():
     """Uygulama başladığında ML modelini yükle ve blockchain bağlantısını kontrol et"""
     global model, tokenizer, scaler
+    
+    # Set up necessary directories
+    from backend.api.setup import setup_backend_directories
+    setup_backend_directories()
+    
     try:
         model, tokenizer, scaler = load_model()
         logging.info("ML model loaded successfully")
@@ -105,11 +110,9 @@ async def startup_event():
         if blockchain_connected:
             logging.info("Blockchain connection successful")
         else:
-            logging.warning("Blockchain connection failed - some features may be limited")
-            
+            logging.warning("Blockchain connection failed. Some features may not work.")
     except Exception as e:
         logging.error(f"Startup error: {str(e)}")
-        raise
 
 @app.get("/")
 def read_root():
