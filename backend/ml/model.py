@@ -122,75 +122,123 @@ def extract_code_features(code):
 
 def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
     """
-    Kod içindeki olası güvenlik açıklarını tespit eder
+    Performs comprehensive security analysis on code to identify vulnerabilities
+    
+    Args:
+        code: Source code string
+        
+    Returns:
+        Dictionary with vulnerability details, code quality metrics, and risk assessment
     """
     vulnerabilities = []
+    code_quality = {}
     risk_level = 0
-
+    
     # Tehlikeli import ve kütüphane kullanımları
     dangerous_imports = {
-        r'import\s+os': {'name': 'OS Access', 'risk': 'high', 'score': 8},
-        r'import\s+subprocess': {'name': 'Command Execution', 'risk': 'critical', 'score': 10},
-        r'import\s+sys': {'name': 'System Access', 'risk': 'medium', 'score': 5},
-        r'import\s+(requests|http|urllib)': {'name': 'Network Access', 'risk': 'medium', 'score': 6},
-        r'import\s+socket': {'name': 'Raw Socket Access', 'risk': 'high', 'score': 7},
-        r'from\s+cryptography': {'name': 'Cryptography Usage', 'risk': 'medium', 'score': 4},
-        r'import\s+flask': {'name': 'Web Framework', 'risk': 'low', 'score': 3},
-        r'import\s+django': {'name': 'Web Framework', 'risk': 'low', 'score': 3},
-        r'import\s+fastapi': {'name': 'Web Framework', 'risk': 'low', 'score': 3},
-    }
-
-    # Tehlikeli fonksiyon kullanımları
-    dangerous_functions = {
-        r'exec\s*\(': {'name': 'Code Execution', 'risk': 'critical', 'score': 10},
-        r'eval\s*\(': {'name': 'Code Evaluation', 'risk': 'critical', 'score': 10},
-        r'os\.system\s*\(': {'name': 'Command Execution', 'risk': 'critical', 'score': 10},
-        r'subprocess\.': {'name': 'Command Execution', 'risk': 'critical', 'score': 9},
-        r'open\s*\(': {'name': 'File Operations', 'risk': 'high', 'score': 7},
-        r'__import__\s*\(': {'name': 'Dynamic Import', 'risk': 'high', 'score': 8},
-        r'pickle\.': {'name': 'Unsafe Deserialization', 'risk': 'high', 'score': 8},
-        r'yaml\.load\s*\(': {'name': 'Unsafe YAML Parsing', 'risk': 'high', 'score': 7},
-        r'request\.get\s*\(': {'name': 'HTTP Request', 'risk': 'medium', 'score': 5},
-        r'input\s*\(': {'name': 'User Input', 'risk': 'medium', 'score': 4},
+        r'import\s+os': {'name': 'OS Access', 'risk': 'high', 'score': 8, 
+                        'description': 'Code has access to operating system functions that could be dangerous if misused'},
+        r'import\s+subprocess': {'name': 'Command Execution', 'risk': 'critical', 'score': 10,
+                               'description': 'Code can execute arbitrary system commands, posing serious security risks'},
+        r'import\s+sys': {'name': 'System Access', 'risk': 'medium', 'score': 5,
+                        'description': 'Code has access to Python interpreter and system variables'},
+        r'import\s+(requests|http|urllib)': {'name': 'Network Access', 'risk': 'medium', 'score': 6,
+                                           'description': 'Code can make network requests to external services'},
+        r'import\s+socket': {'name': 'Raw Socket Access', 'risk': 'high', 'score': 7,
+                           'description': 'Code has low-level network access which can be used maliciously'},
+        r'from\s+cryptography': {'name': 'Cryptography Usage', 'risk': 'medium', 'score': 4,
+                               'description': 'Code uses cryptographic functions which may have security implications'},
+        r'import\s+(flask|django|fastapi)': {'name': 'Web Framework', 'risk': 'low', 'score': 3,
+                                          'description': 'Code uses web frameworks which may expose endpoints'},
+        r'import\s+sqlite3|import\s+pymysql|import\s+psycopg2': {'name': 'Database Access', 'risk': 'medium', 'score': 5,
+                                                              'description': 'Code has database access capabilities'},
     }
     
-    # Güvenlik açıklarını tespit et
+    # Tehlikeli fonksiyon kullanımları
+    dangerous_functions = {
+        r'eval\s*\(': {'name': 'Arbitrary Code Execution', 'risk': 'critical', 'score': 10,
+                     'description': 'eval() can execute arbitrary code and is extremely dangerous'},
+        r'exec\s*\(': {'name': 'Arbitrary Code Execution', 'risk': 'critical', 'score': 10,
+                     'description': 'exec() can execute arbitrary code and is extremely dangerous'},
+        r'os\.system\s*\(': {'name': 'Command Execution', 'risk': 'critical', 'score': 9,
+                          'description': 'Executes shell commands which can be dangerous if user input is involved'},
+        r'subprocess\.': {'name': 'Command Execution', 'risk': 'high', 'score': 8,
+                        'description': 'Subprocess functions can execute system commands'},
+        r'open\s*\(': {'name': 'File Operations', 'risk': 'medium', 'score': 5,
+                     'description': 'File operations may lead to information disclosure or modification'},
+        r'input\s*\(': {'name': 'User Input', 'risk': 'medium', 'score': 4,
+                      'description': 'User input needs proper validation to prevent injection attacks'},
+        r'pickle\.': {'name': 'Unsafe Deserialization', 'risk': 'high', 'score': 7,
+                    'description': 'Pickle deserialization can lead to arbitrary code execution'},
+        r'\.format\s*\(|f[\'"]': {'name': 'String Formatting', 'risk': 'low', 'score': 2,
+                               'description': 'String formatting could lead to injection if used with untrusted input'},
+        r'request\.': {'name': 'Web Request Handling', 'risk': 'medium', 'score': 5,
+                     'description': 'Web request handling requires proper validation and sanitization'},
+        r'\.execute\s*\(': {'name': 'SQL Operations', 'risk': 'high', 'score': 7,
+                          'description': 'Database operations need proper parameterization to prevent SQL injection'},
+    }
+    
+    # Güvenlik açıklarını kontrol et
     for pattern, info in dangerous_imports.items():
         if re.search(pattern, code):
-            vulnerabilities.append({
-                'type': 'import',
-                'name': info['name'],
-                'risk': info['risk'],
-                'description': f"Potentially dangerous import: {info['name']}",
-                'score': info['score']
-            })
-            risk_level += info['score']
+            vulnerability = info.copy()
+            vulnerability['type'] = 'import'
+            vulnerabilities.append(vulnerability)
+            risk_level += vulnerability['score']
     
     for pattern, info in dangerous_functions.items():
         if re.search(pattern, code):
+            # Check if this is likely safe or contained within proper validation
+            is_potentially_safe = re.search(r'try\s*:.*?' + pattern + '.*?except', code, re.DOTALL) is not None
+            
+            vulnerability = info.copy()
+            vulnerability['type'] = 'function'
+            
+            # Reduce the score if it appears to be properly handled
+            if is_potentially_safe:
+                vulnerability['score'] = max(1, vulnerability['score'] // 2)
+                vulnerability['description'] += " (appears to be in a try-except block)"
+                vulnerability['risk'] = 'low' if vulnerability['score'] < 4 else 'medium'
+            
+            vulnerabilities.append(vulnerability)
+            risk_level += vulnerability['score']
+    
+    # Additional patterns to check for common vulnerabilities
+    vuln_patterns = [
+        (r'password\s*=\s*[\'"][^\'"]+[\'"]', 'Hardcoded Password', 'critical', 9,
+         'Code contains hardcoded password which is a severe security risk'),
+        (r'secret\s*=\s*[\'"][^\'"]+[\'"]', 'Hardcoded Secret', 'critical', 8,
+         'Code contains hardcoded secret which is a severe security risk'),
+        (r'token\s*=\s*[\'"][^\'"]+[\'"]', 'Hardcoded Token', 'high', 7,
+         'Code contains hardcoded token which should be stored securely'),
+        (r'SELECT\s+.*?\s+FROM.*?WHERE.*?=\s*[\'"]', 'Potential SQL Injection', 'high', 8,
+         'SQL queries should use parameterized statements to prevent injection'),
+        (r'curl\s+', 'Command-line Network Access', 'medium', 6,
+         'Using curl in commands can lead to injections if user input is involved'),
+    ]
+    
+    for pattern, name, risk, score, description in vuln_patterns:
+        if re.search(pattern, code):
             vulnerabilities.append({
-                'type': 'function',
-                'name': info['name'],
-                'risk': info['risk'],
-                'description': f"Potentially dangerous function: {info['name']}",
-                'score': info['score']
+                'type': 'pattern',
+                'name': name,
+                'risk': risk,
+                'score': score,
+                'description': description
             })
-            risk_level += info['score']
+            risk_level += score
     
-    # Yazım biçimi ve kalitesi
-    code_quality = {}
-    
-    # Girinti tutarlılığı
+    # Kod kalite sorunlarını kontrol et
     indentation_consistency = calculate_indentation_consistency(code)
-    if indentation_consistency < 0.7:
-        code_quality['indentation_consistency'] = {
+    if indentation_consistency < 0.8:
+        code_quality['indentation'] = {
             'value': indentation_consistency,
-            'description': 'Poor indentation consistency',
+            'description': 'Inconsistent indentation',
             'score': 3
         }
         risk_level += 3
     
-    # Uzun satırlar
+    # Satır uzunluğu kontrolü
     avg_line_length = calculate_avg_line_length(code)
     if avg_line_length > 120:
         code_quality['line_length'] = {
@@ -200,7 +248,7 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
         }
         risk_level += 2
     
-    # Karmaşıklık
+    # Karmaşıklık kontrolü
     complexity = calculate_cyclomatic_complexity(code)
     if complexity > 15:
         code_quality['complexity'] = {
@@ -210,7 +258,7 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
         }
         risk_level += 4
     
-    # Yorum satırı yoğunluğu
+    # Yorum satırı yoğunluğu kontrolü
     total_lines = code.count('\n') + 1
     comment_lines = len(re.findall(r'^\s*#.*$|^\s*""".*?"""\s*$|^\s*\'\'\'.*?\'\'\'\s*$', code, re.MULTILINE))
     comment_ratio = comment_lines / total_lines if total_lines > 0 else 0
@@ -223,8 +271,32 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
         }
         risk_level += 2
     
+    # Variable naming consistency check
+    var_names = re.findall(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=', code)
+    var_name_consistency = calculate_naming_consistency(var_names)
+    
+    if var_name_consistency < 0.7 and len(var_names) > 5:
+        code_quality['naming_consistency'] = {
+            'value': var_name_consistency,
+            'description': 'Inconsistent variable naming conventions',
+            'score': 3
+        }
+        risk_level += 3
+    
+    # Function length check
+    function_bodies = re.findall(r'def\s+[^(]+\([^)]*\):\s*(?:\n\s+[^\n]+)+', code)
+    if function_bodies:
+        avg_function_length = np.mean([fb.count('\n') for fb in function_bodies])
+        if avg_function_length > 30:
+            code_quality['function_length'] = {
+                'value': avg_function_length,
+                'description': 'Functions are too long on average',
+                'score': 3
+            }
+            risk_level += 3
+    
     # Risk seviyesini normalleştir (0-100 arası)
-    normalized_risk = min(100, risk_level * 3)
+    normalized_risk = min(100, risk_level * 2.5)
     
     return {
         'vulnerabilities': vulnerabilities,
@@ -235,235 +307,439 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
         'low_risk': normalized_risk < 30
     }
 
+@lru_cache(maxsize=32)
 def load_model() -> Tuple:
-    """Eğitilmiş modeli, tokenizer'ı ve scaler'ı yükler"""
+    """
+    Load the trained model, tokenizer, and scaler with caching
+    
+    Returns:
+        Tuple of (model, tokenizer, scaler)
+    """
     try:
-        # Model klasörünün var olduğundan emin ol
+        # Create model directory if it doesn't exist
         os.makedirs(MODEL_DIR, exist_ok=True)
         
-        # Eğer model dosyası yoksa, train_model.py'yi çalıştırarak model eğitme seçeneği
+        # Try to load the model, or train if missing
         if not os.path.exists(MODEL_PATH):
-            logging.warning("Model dosyası bulunamadı. Eğitim scriptini çalıştırmayı deneyeceğim.")
+            logging.warning("Model file not found. Attempting to train model.")
             try:
-                from training.train_model import train_model
+                from backend.ml.models.train_model import train_model
                 model, tokenizer, scaler = train_model()
                 return model, tokenizer, scaler
             except Exception as e:
-                logging.error(f"Model eğitimi başarısız: {str(e)}")
+                logging.error(f"Model training failed: {str(e)}")
                 raise
         else:
+            start_time = time.time()
             model = tf.keras.models.load_model(MODEL_PATH)
+            logging.info(f"Model loaded in {time.time() - start_time:.2f} seconds")
             
-        # Tokenizer'ı yükle
+        # Load tokenizer
         if not os.path.exists(TOKENIZER_PATH):
-            raise FileNotFoundError(f"Tokenizer dosyası bulunamadı: {TOKENIZER_PATH}")
+            raise FileNotFoundError(f"Tokenizer file not found: {TOKENIZER_PATH}")
         
         with open(TOKENIZER_PATH) as f:
             tokenizer_json = json.load(f)
             tokenizer = tf.keras.preprocessing.text.tokenizer_from_json(tokenizer_json)
             
-        # Scaler'ı yükle
+        # Load scaler
         if not os.path.exists(SCALER_PATH):
-            raise FileNotFoundError(f"Scaler dosyası bulunamadı: {SCALER_PATH}")
+            raise FileNotFoundError(f"Scaler file not found: {SCALER_PATH}")
             
         scaler = joblib.load(SCALER_PATH)
         
-        logging.info("Model, tokenizer ve scaler başarıyla yüklendi.")
+        logging.info("Model, tokenizer, and scaler loaded successfully")
         return model, tokenizer, scaler
 
     except Exception as e:
-        logging.error(f"Model yükleme hatası: {str(e)}")
+        logging.error(f"Error loading model: {str(e)}")
         raise
 
-def predict_code(code: str, model, tokenizer, scaler) -> Dict[str, Any]:
+def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str, Any]:
     """
-    Verilen kodu analiz eder ve sonuçları döndürür
+    Analyze code to determine if it's human-written or AI-generated, and perform security analysis
+    
+    Args:
+        code: Source code to analyze
+        model: Pre-loaded model (optional)
+        tokenizer: Pre-loaded tokenizer (optional)
+        scaler: Pre-loaded scaler (optional)
+        
+    Returns:
+        Dictionary with prediction results and security analysis
     """
+    start_time = time.time()
     try:
-        # Kod özelliklerini çıkar
+        # Load model components if not provided
+        if model is None or tokenizer is None or scaler is None:
+            model, tokenizer, scaler = load_model()
+        
+        # Extract code features
         features = np.array([extract_code_features(code)])
         scaled_features = scaler.transform(features)
         
-        # Kodu sayısal formata dönüştür
+        # Convert code to numerical sequences
         sequence = tokenizer.texts_to_sequences([code])
-        padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
+        padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
         
-        # Tahmin yap
-        prediction = model.predict([padded_sequence, scaled_features])
+        # Make prediction
+        prediction = model.predict([padded_sequence, scaled_features], verbose=0)
         confidence = float(prediction[0][0])
         
-        # Potansiyel AI kaynakları ve tahminleri
-        ai_sources = ['ChatGPT-4', 'DeepSeek-Coder', 'Claude-3.7', 'Gemini-1.5', 'Copilot']
+        # Define potential AI models and assign probabilities
+        ai_sources = ['ChatGPT-4', 'DeepSeek-Coder', 'Claude-3.7', 'Gemini-1.5', 'Copilot', 'GPT-3.5']
         source_probs = {}
         
-        # Kod karakteristiklerine göre farklı AI kaynaklarına farklı olasılıklar ver
-        if confidence > 0.5:  # AI olarak tespit edildiyse
+        if confidence > 0.5:  # If predicted as AI
             features_dict = {name: value for name, value in zip(FEATURE_NAMES, features[0])}
             
-            # ChatGPT-4 genellikle daha tutarlı ve temiz kod üretir
-            chatgpt_prob = min(0.95, confidence * (features_dict['indentation_consistency'] / 0.5))
+            # Assign probabilities based on code characteristics
+            # ChatGPT-4 tends to have very consistent formatting and good documentation
+            chatgpt_prob = min(0.95, confidence * (0.5 + features_dict['indentation_consistency'] * 0.5))
             
-            # DeepSeek daha karmaşık ve uzun yapıları tercih eder
-            deepseek_prob = min(0.90, confidence * (features_dict['cyclomatic_complexity'] / 10))
+            # DeepSeek tends to produce more complex code
+            deepseek_prob = min(0.90, confidence * (0.3 + features_dict['cyclomatic_complexity'] / 20 * 0.7))
             
-            # Claude genellikle daha açıklayıcı ve yorumları zengin kod üretir
-            claude_prob = min(0.85, confidence * (features_dict['num_comments'] / 10))
+            # Claude tends to be verbose with good documentation
+            claude_prob = min(0.85, confidence * (0.2 + features_dict['comment_to_code_ratio'] * 0.8))
             
-            # Diğer kaynaklara daha düşük olasılıklar ver
-            gemini_prob = min(0.80, confidence * 0.8)
-            copilot_prob = min(0.75, confidence * 0.7)
+            # Gemini tends to have medium-length lines and good variable naming
+            gemini_prob = min(0.80, confidence * (0.4 + features_dict['variable_name_consistency'] * 0.6))
             
-            # Olasılıkları normalize et
-            total_prob = chatgpt_prob + deepseek_prob + claude_prob + gemini_prob + copilot_prob
+            # Copilot tends to produce more concise code
+            copilot_prob = min(0.75, confidence * (0.5 + (1 - features_dict['avg_line_length'] / 100) * 0.5))
+            
+            # GPT-3.5 tends to be less consistent than GPT-4
+            gpt35_prob = min(0.70, confidence * (0.6 + (1 - features_dict['indentation_consistency']) * 0.4))
+            
+            # Normalize probabilities
+            total_prob = (chatgpt_prob + deepseek_prob + claude_prob + 
+                         gemini_prob + copilot_prob + gpt35_prob)
+            
             source_probs = {
                 'ChatGPT-4': chatgpt_prob / total_prob,
                 'DeepSeek-Coder': deepseek_prob / total_prob,
                 'Claude-3.7': claude_prob / total_prob,
                 'Gemini-1.5': gemini_prob / total_prob,
-                'Copilot': copilot_prob / total_prob
+                'Copilot': copilot_prob / total_prob,
+                'GPT-3.5': gpt35_prob / total_prob
             }
             
-            # En yüksek olasılıklı kaynağı seç
+            # Select the most likely source
             detected_source = max(source_probs, key=source_probs.get)
         else:
             detected_source = 'Human'
             source_probs = {source: 0.0 for source in ai_sources}
             source_probs['Human'] = 1.0
         
-        # Güvenlik analizi yap
+        # Run security analysis
         security_analysis = analyze_code_vulnerabilities(code)
+        
+        # Log performance metrics
+        processing_time = time.time() - start_time
+        logging.info(f"Code analysis completed in {processing_time:.2f}s (length: {len(code)})")
         
         return {
             'prediction': 'AI' if confidence > 0.5 else 'Human',
             'confidence': round(confidence if confidence > 0.5 else 1 - confidence, 3),
             'source': detected_source,
-            'source_probabilities': source_probs,
+            'source_probabilities': {k: round(v, 3) for k, v in source_probs.items()},
             'features': {name: float(value) for name, value in zip(FEATURE_NAMES, features[0])},
             'security_analysis': security_analysis,
-            'risk_score': round(security_analysis['risk_level'], 1)
+            'risk_score': round(security_analysis['risk_level'], 1),
+            'processing_time_ms': round(processing_time * 1000)
         }
 
     except Exception as e:
-        logging.error(f"Kod analiz hatası: {str(e)}")
+        processing_time = time.time() - start_time
+        logging.error(f"Code analysis error after {processing_time:.2f}s: {str(e)}")
+        
+        # Provide a simplified response in case of errors
         return {
             'error': str(e),
             'prediction': 'Unknown',
             'confidence': 0,
-            'risk_score': 0
+            'source': 'Error',
+            'risk_score': 0,
+            'processing_time_ms': round(processing_time * 1000)
         }
 
-def parse_github_url(input_url):
-    """GitHub URL'ini parse eder ve repository bilgilerini döndürür"""
-    # GitHub URL'lerini normalize et
-    input_url = re.sub(r"(https?://github.com/|/blob/|/tree/)", "", input_url).strip("/")
-    parts = input_url.split("/")
-
-    repo_info = {
-        'owner': parts[0],
-        'repo': parts[1],
-        'branch': 'main'
-    }
-
-    if len(parts) > 2:
-        branch_candidates = ['main', 'master', 'dev', 'development']
-        if parts[2] in branch_candidates:
-            repo_info['branch'] = parts[2]
-            repo_info['file_path'] = "/".join(parts[3:]) if len(parts) > 3 else None
-        else:
-            repo_info['file_path'] = "/".join(parts[2:])
-
-    return repo_info
-
-def fetch_github_code(repo_info, token=None):
+def parse_github_url(url: str) -> Optional[Tuple[str, str, str, Optional[str]]]:
     """
-    GitHub reposundan kod dosyalarını çeker
+    Parse a GitHub URL into its components: owner, repo, branch/tag, and path.
     
     Args:
-        repo_info: Repository bilgileri
-        token: Github API Token
+        url: GitHub URL in various formats
         
     Returns:
-        str: Çekilen kodlar
+        Tuple of (owner, repo, branch, path) or None if URL not valid
     """
-    import requests
-    import base64
-    import os
+    patterns = [
+        # Standard GitHub URL format
+        r'https?://github\.com/([^/]+)/([^/]+)(?:/tree/([^/]+)(?:/(.+))?)?',
+        # GitHub raw content URL
+        r'https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)(?:/(.+))?',
+        # GitHub blob URL
+        r'https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)(?:/(.+))?',
+        # Shortened GitHub URL (main branch implied)
+        r'https?://github\.com/([^/]+)/([^/]+)/?$'
+    ]
     
-    try:
-        owner = repo_info['owner']
-        repo = repo_info['repo']
-        branch = repo_info.get('branch', 'main')
-        file_path = repo_info.get('file_path')
-
-        # GitHub API Token (Çevre değişkeninden veya parametre olarak)
-        headers = {}
-        github_token = token or os.getenv('GITHUB_TOKEN')
-        if github_token:
-            headers["Authorization"] = f"token {github_token}"
-
-        # Repo detaylarını getir
-        repo_api_url = f"https://api.github.com/repos/{owner}/{repo}"
-        repo_response = requests.get(repo_api_url, headers=headers)
-
-        if repo_response.status_code != 200:
-            raise ConnectionError(f"Repository bulunamadı ({repo_response.status_code}): {repo_response.text}")
-
-        # Eğer belirli bir dosya isteniyorsa, sadece o dosyayı getir
-        if file_path:
-            file_url = f"{repo_api_url}/contents/{file_path}?ref={branch}"
-            file_response = requests.get(file_url, headers=headers)
-
-            if file_response.status_code != 200:
-                raise FileNotFoundError(f"Dosya bulunamadı ({file_response.status_code}): {file_response.text}")
-
-            if 'content' not in file_response.json():
-                raise KeyError("API cevabında 'content' alanı bulunamadı")
-
-            try:
-                content = base64.b64decode(file_response.json()['content']).decode('utf-8')
-                return f"### Dosya: {file_path} ###\n{content}"
-            except UnicodeDecodeError:
-                raise ValueError("Binary dosya formatı - Metin dosyası bekleniyor")
-
-        # Repo'daki tüm dosyaları recursive olarak listele
-        trees_url = f"{repo_api_url}/git/trees/{branch}?recursive=1"
-        trees_response = requests.get(trees_url, headers=headers)
-        trees_response.raise_for_status()
-
-        # Sadece belli dosya uzantılarını kabul et
-        valid_exts = {'py', 'js', 'java', 'c', 'cpp', 'cs', 'ts', 'rs', 'go', 'rb', 'php', 'sol'}
-        files = [
-            f['path'] for f in trees_response.json()['tree']
-            if f['type'] == 'blob'
-            and f['path'].split('.')[-1] in valid_exts
-            and f['size'] < 1000000  # 1MB'dan küçük dosyaları kabul et
-        ]
-
-        all_code = ""
-        for path in files[:50]:  # En fazla 50 dosya al (API limit sınırlaması için)
-            try:
-                file_url = f"{repo_api_url}/contents/{path}?ref={branch}"
-                file_response = requests.get(file_url, headers=headers)
-
-                if file_response.status_code != 200:
-                    continue
-
-                if 'content' not in file_response.json():
-                    continue
-
-                content = base64.b64decode(file_response.json()['content']).decode('utf-8')
-                all_code += f"\n\n### Dosya: {path} ###\n{content}"
-
-            except Exception as e:
-                logging.warning(f"⚠️ {path} dosyası işlenirken hata: {str(e)[:100]}...")
-
-        if not all_code:
-            raise ValueError("Repository'den kod içeriği alınamadı")
+    for pattern in patterns:
+        match = re.match(pattern, url)
+        if match:
+            owner, repo = match.group(1), match.group(2)
             
-        return all_code
+            # Remove .git suffix if present
+            if repo.endswith('.git'):
+                repo = repo[:-4]
+                
+            # Extract branch or use main/master as default
+            branch = match.group(3) if len(match.groups()) > 2 and match.group(3) else 'main'
+            
+            # Extract path if available
+            path = match.group(4) if len(match.groups()) > 3 and match.group(4) else None
+            
+            return owner, repo, branch, path
+    
+    # Handle shorthand format: username/repo
+    shorthand_match = re.match(r'^([^/]+)/([^/]+)$', url)
+    if shorthand_match:
+        owner, repo = shorthand_match.group(1), shorthand_match.group(2)
+        if repo.endswith('.git'):
+            repo = repo[:-4]
+        return owner, repo, 'main', None
+    
+    return None
 
+def fetch_github_code(url: str, max_files: int = 10, max_lines: int = 5000) -> Dict[str, Any]:
+    """
+    Fetch code from a GitHub repository or specific file
+    
+    Args:
+        url: GitHub URL to repository, directory, or file
+        max_files: Maximum number of files to fetch
+        max_lines: Maximum total lines of code to fetch
+        
+    Returns:
+        Dictionary with repository information and code content
+    """
+    try:
+        # Parse GitHub URL
+        parsed = parse_github_url(url)
+        if not parsed:
+            return {'error': f"Invalid GitHub URL format: {url}"}
+        
+        owner, repo, branch, path = parsed
+        
+        # Initialize response
+        response = {
+            'repository': f"{owner}/{repo}",
+            'branch': branch,
+            'files': [],
+            'total_lines': 0,
+            'fetched_files': 0,
+            'truncated': False
+        }
+        
+        # Get GitHub API token from environment if available
+        github_token = os.environ.get('GITHUB_API_TOKEN')
+        headers = {'Authorization': f'token {github_token}'} if github_token else {}
+        
+        # Construct API URL
+        api_base = f"https://api.github.com/repos/{owner}/{repo}/contents"
+        api_url = f"{api_base}/{path}" if path else api_base
+        api_url += f"?ref={branch}"
+        
+        # Log request details
+        logging.info(f"Fetching GitHub content from: {api_url}")
+        
+        # Fetch directory contents or single file
+        start_time = time.time()
+        r = requests.get(api_url, headers=headers)
+        r.raise_for_status()
+        
+        # Handle API rate limits
+        remaining_rate_limit = int(r.headers.get('X-RateLimit-Remaining', 60))
+        if remaining_rate_limit < 5:
+            logging.warning(f"GitHub API rate limit running low: {remaining_rate_limit} requests remaining")
+        
+        # Process response
+        data = r.json()
+        
+        # If response is a list, it's a directory
+        if isinstance(data, list):
+            files_to_process = []
+            
+            # Filter for code files
+            code_extensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.sol', '.java', '.c', '.cpp', '.h', '.go', '.rs', '.php', '.rb']
+            
+            for item in data:
+                if item['type'] == 'file' and any(item['name'].endswith(ext) for ext in code_extensions):
+                    files_to_process.append(item)
+            
+            # Sort by size (smallest first) to maximize file coverage
+            files_to_process.sort(key=lambda x: x.get('size', 0))
+            
+            # Fetch each file content up to limits
+            for file_item in files_to_process[:max_files]:
+                try:
+                    if response['total_lines'] >= max_lines:
+                        response['truncated'] = True
+                        break
+                    
+                    file_content = requests.get(file_item['download_url'], headers=headers).text
+                    line_count = file_content.count('\n') + 1
+                    
+                    # Skip very large files
+                    if line_count > 1000:
+                        continue
+                    
+                    # Add file to response
+                    response['files'].append({
+                        'name': file_item['name'],
+                        'path': file_item['path'],
+                        'content': file_content,
+                        'line_count': line_count
+                    })
+                    
+                    response['total_lines'] += line_count
+                    response['fetched_files'] += 1
+                    
+                except Exception as e:
+                    logging.error(f"Error fetching file {file_item['path']}: {str(e)}")
+            
+        # If response is a dict with content, it's a single file
+        elif isinstance(data, dict) and 'type' in data and data['type'] == 'file':
+            try:
+                file_content = requests.get(data['download_url'], headers=headers).text
+                line_count = file_content.count('\n') + 1
+                
+                response['files'].append({
+                    'name': data['name'],
+                    'path': data.get('path', ''),
+                    'content': file_content,
+                    'line_count': line_count
+                })
+                
+                response['total_lines'] = line_count
+                response['fetched_files'] = 1
+                
+            except Exception as e:
+                logging.error(f"Error fetching file {data.get('path', '')}: {str(e)}")
+                return {'error': f"Error fetching file: {str(e)}"}
+        
+        # Log performance
+        processing_time = time.time() - start_time
+        logging.info(f"GitHub fetch completed in {processing_time:.2f}s: {response['fetched_files']} files, {response['total_lines']} lines")
+        
+        return response
+        
+    except requests.exceptions.RequestException as e:
+        status_code = e.response.status_code if hasattr(e, 'response') and hasattr(e.response, 'status_code') else 'unknown'
+        logging.error(f"GitHub API error (status {status_code}): {str(e)}")
+        
+        if status_code == 404:
+            return {'error': f"Repository, branch, or path not found: {url}"}
+        elif status_code == 403:
+            return {'error': "GitHub API rate limit exceeded. Try again later or use an API token."}
+        else:
+            return {'error': f"GitHub API error: {str(e)}"}
+    
     except Exception as e:
-        logging.error(f"GitHub kod çekme hatası: {str(e)}")
-        if 'file_url' in locals():
-            logging.error(f"İstek URL'i: {file_url}")
-        raise 
+        logging.error(f"Error in fetch_github_code: {str(e)}")
+        return {'error': f"Failed to fetch GitHub code: {str(e)}"}
+
+async def analyze_github_repo(url: str) -> Dict[str, Any]:
+    """
+    Analyze code from a GitHub repository for AI detection and security vulnerabilities
+    
+    Args:
+        url: GitHub repository URL
+        
+    Returns:
+        Analysis results for the repository
+    """
+    try:
+        # Fetch code from GitHub
+        repo_data = fetch_github_code(url)
+        
+        if 'error' in repo_data:
+            return {'error': repo_data['error']}
+        
+        if not repo_data['files']:
+            return {'error': 'No suitable code files found in the repository'}
+        
+        # Load model components
+        model, tokenizer, scaler = load_model()
+        
+        # Analyze each file
+        results = []
+        combined_code = ""
+        
+        for file_info in repo_data['files']:
+            # Skip files that are too large or empty
+            if len(file_info['content']) > 100000 or not file_info['content'].strip():
+                continue
+                
+            # Analyze the file
+            file_result = predict_code(file_info['content'], model, tokenizer, scaler)
+            
+            results.append({
+                'file_name': file_info['name'],
+                'file_path': file_info['path'],
+                'line_count': file_info['line_count'],
+                'analysis': file_result
+            })
+            
+            # Append code for combined analysis
+            combined_code += f"\n\n# File: {file_info['path']}\n{file_info['content']}"
+        
+        # Perform combined analysis on all files together
+        if combined_code:
+            combined_result = predict_code(combined_code, model, tokenizer, scaler)
+        else:
+            combined_result = {'error': 'Could not perform combined analysis'}
+        
+        # Calculate overall metrics
+        ai_confidence_values = [r['analysis']['confidence'] for r in results 
+                               if 'analysis' in r and 'confidence' in r['analysis']]
+        
+        risk_scores = [r['analysis']['risk_score'] for r in results 
+                      if 'analysis' in r and 'risk_score' in r['analysis']]
+        
+        if ai_confidence_values:
+            avg_ai_confidence = sum(ai_confidence_values) / len(ai_confidence_values)
+            max_ai_confidence = max(ai_confidence_values)
+        else:
+            avg_ai_confidence = 0.0
+            max_ai_confidence = 0.0
+            
+        if risk_scores:
+            avg_risk_score = sum(risk_scores) / len(risk_scores)
+            max_risk_score = max(risk_scores)
+        else:
+            avg_risk_score = 0.0
+            max_risk_score = 0.0
+        
+        # Return comprehensive results
+        return {
+            'repository': repo_data['repository'],
+            'branch': repo_data['branch'],
+            'files_analyzed': len(results),
+            'total_lines': repo_data['total_lines'],
+            'file_results': results,
+            'combined_analysis': combined_result,
+            'overall_metrics': {
+                'avg_ai_confidence': round(avg_ai_confidence, 3),
+                'max_ai_confidence': round(max_ai_confidence, 3),
+                'avg_risk_score': round(avg_risk_score, 1),
+                'max_risk_score': round(max_risk_score, 1),
+                'detected_source': combined_result.get('source', 'Unknown')
+            },
+            'truncated': repo_data.get('truncated', False)
+        }
+        
+    except Exception as e:
+        logging.error(f"Error analyzing GitHub repository: {str(e)}")
+        return {'error': f"Failed to analyze repository: {str(e)}"} 
