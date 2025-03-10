@@ -10,8 +10,11 @@ import random
 import os
 import logging
 import time
+import pickle
+import traceback
 from typing import Dict, Any, Tuple, List, Optional, Union
 from functools import lru_cache
+import pandas as pd
 
 # Model ve data sabitleri
 MAX_VOCAB_SIZE = 10000
@@ -310,54 +313,50 @@ def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
 @lru_cache(maxsize=32)
 def load_model() -> Tuple:
     """
-    Load the trained model, tokenizer, and scaler with caching
+    Load the trained model, tokenizer, and scaler
     
     Returns:
-        Tuple of (model, tokenizer, scaler)
+        Tuple of (model, tokenizer, scaler) or (None, None, None) if loading fails
     """
     try:
-        # Create model directory if it doesn't exist
-        os.makedirs(MODEL_DIR, exist_ok=True)
+        # Get the model directory
+        model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
         
-        # Try to load the model, or train if missing
-        if not os.path.exists(MODEL_PATH):
-            logging.warning("Model file not found. Attempting to train model.")
-            try:
-                from backend.ml.models.train_model import train_model
-                model, tokenizer, scaler = train_model()
-                return model, tokenizer, scaler
-            except Exception as e:
-                logging.error(f"Model training failed: {str(e)}")
-                raise
-        else:
-            start_time = time.time()
-            model = tf.keras.models.load_model(MODEL_PATH)
-            logging.info(f"Model loaded in {time.time() - start_time:.2f} seconds")
-            
+        # Define paths for model, tokenizer, and scaler
+        model_path = os.path.join(model_dir, 'code_classifier_model.h5')
+        tokenizer_path = os.path.join(model_dir, 'tokenizer.pkl')
+        scaler_path = os.path.join(model_dir, 'scaler.pkl')
+        
+        # Check if all files exist
+        if not os.path.exists(model_path) or not os.path.exists(tokenizer_path) or not os.path.exists(scaler_path):
+            logging.warning(f"Model or preprocessing files not found in {model_dir}")
+            return None, None, None
+        
+        # Load model
+        logging.info(f"Loading model from {model_path}")
+        model = tf.keras.models.load_model(model_path)
+        
         # Load tokenizer
-        if not os.path.exists(TOKENIZER_PATH):
-            raise FileNotFoundError(f"Tokenizer file not found: {TOKENIZER_PATH}")
+        logging.info(f"Loading tokenizer from {tokenizer_path}")
+        with open(tokenizer_path, 'rb') as f:
+            tokenizer = pickle.load(f)
         
-        with open(TOKENIZER_PATH) as f:
-            tokenizer_json = json.load(f)
-            tokenizer = tf.keras.preprocessing.text.tokenizer_from_json(tokenizer_json)
-            
         # Load scaler
-        if not os.path.exists(SCALER_PATH):
-            raise FileNotFoundError(f"Scaler file not found: {SCALER_PATH}")
-            
-        scaler = joblib.load(SCALER_PATH)
+        logging.info(f"Loading scaler from {scaler_path}")
+        with open(scaler_path, 'rb') as f:
+            scaler = pickle.load(f)
         
-        logging.info("Model, tokenizer, and scaler loaded successfully")
+        logging.info("Model and preprocessing files loaded successfully")
         return model, tokenizer, scaler
-
+    
     except Exception as e:
         logging.error(f"Error loading model: {str(e)}")
-        raise
+        traceback.print_exc()
+        return None, None, None
 
 def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str, Any]:
     """
-    Analyze code to determine if it's human-written or AI-generated, and perform security analysis
+    Predict whether code is AI-generated and analyze its security
     
     Args:
         code: Source code to analyze
@@ -366,85 +365,86 @@ def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str
         scaler: Pre-loaded scaler (optional)
         
     Returns:
-        Dictionary with prediction results and security analysis
+        Dictionary with prediction results and analysis
     """
     start_time = time.time()
+    
     try:
-        # Load model components if not provided
+        # Load model, tokenizer, and scaler if not provided
         if model is None or tokenizer is None or scaler is None:
             model, tokenizer, scaler = load_model()
+            
+            # If loading fails, use fallback method
+            if model is None:
+                logging.warning("Using fallback method for prediction as model failed to load")
+                return {
+                    'prediction': 'Unknown',
+                    'confidence': 0.5,
+                    'source': 'Fallback',
+                    'source_probabilities': {
+                        'AI': 0.5,
+                        'Human': 0.5
+                    },
+                    'features': {},
+                    'security_analysis': analyze_code_vulnerabilities(code),
+                    'processing_time_ms': round((time.time() - start_time) * 1000)
+                }
         
-        # Extract code features
-        features = np.array([extract_code_features(code)])
-        scaled_features = scaler.transform(features)
+        # Extract features from code
+        features = extract_code_features(code)
         
-        # Convert code to numerical sequences
-        sequence = tokenizer.texts_to_sequences([code])
-        padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
+        # Create a DataFrame with the features
+        feature_df = pd.DataFrame([features], columns=FEATURE_NAMES)
+        feature_df.fillna(0, inplace=True)  # Replace NaN values with 0
+        
+        # Scale the features
+        scaled_features = scaler.transform(feature_df)
+        
+        # Prepare text input
+        text_input = ' '.join(map(str, features.values()))
+        seq = tokenizer.texts_to_sequences([text_input])
+        padded_seq = pad_sequences(seq, maxlen=MAX_SEQUENCE_LENGTH)
         
         # Make prediction
-        prediction = model.predict([padded_sequence, scaled_features], verbose=0)
-        confidence = float(prediction[0][0])
+        prediction = model.predict([padded_seq, scaled_features], verbose=0)[0][0]
         
-        # Define potential AI models and assign probabilities
-        ai_sources = ['ChatGPT-4', 'DeepSeek-Coder', 'Claude-3.7', 'Gemini-1.5', 'Copilot', 'GPT-3.5']
-        source_probs = {}
-        
-        if confidence > 0.5:  # If predicted as AI
-            features_dict = {name: value for name, value in zip(FEATURE_NAMES, features[0])}
-            
-            # Assign probabilities based on code characteristics
-            # ChatGPT-4 tends to have very consistent formatting and good documentation
-            chatgpt_prob = min(0.95, confidence * (0.5 + features_dict['indentation_consistency'] * 0.5))
-            
-            # DeepSeek tends to produce more complex code
-            deepseek_prob = min(0.90, confidence * (0.3 + features_dict['cyclomatic_complexity'] / 20 * 0.7))
-            
-            # Claude tends to be verbose with good documentation
-            claude_prob = min(0.85, confidence * (0.2 + features_dict['comment_to_code_ratio'] * 0.8))
-            
-            # Gemini tends to have medium-length lines and good variable naming
-            gemini_prob = min(0.80, confidence * (0.4 + features_dict['variable_name_consistency'] * 0.6))
-            
-            # Copilot tends to produce more concise code
-            copilot_prob = min(0.75, confidence * (0.5 + (1 - features_dict['avg_line_length'] / 100) * 0.5))
-            
-            # GPT-3.5 tends to be less consistent than GPT-4
-            gpt35_prob = min(0.70, confidence * (0.6 + (1 - features_dict['indentation_consistency']) * 0.4))
-            
-            # Normalize probabilities
-            total_prob = (chatgpt_prob + deepseek_prob + claude_prob + 
-                         gemini_prob + copilot_prob + gpt35_prob)
-            
-            source_probs = {
-                'ChatGPT-4': chatgpt_prob / total_prob,
-                'DeepSeek-Coder': deepseek_prob / total_prob,
-                'Claude-3.7': claude_prob / total_prob,
-                'Gemini-1.5': gemini_prob / total_prob,
-                'Copilot': copilot_prob / total_prob,
-                'GPT-3.5': gpt35_prob / total_prob
-            }
-            
-            # Select the most likely source
-            detected_source = max(source_probs, key=source_probs.get)
+        # Determine source based on prediction
+        if prediction >= 0.8:
+            source = 'AI (High Confidence)'
+            prediction_label = 'AI'
+        elif prediction >= 0.6:
+            source = 'AI (Medium Confidence)'
+            prediction_label = 'AI'
+        elif prediction <= 0.2:
+            source = 'Human (High Confidence)'
+            prediction_label = 'Human'
+        elif prediction <= 0.4:
+            source = 'Human (Medium Confidence)'
+            prediction_label = 'Human'
         else:
-            detected_source = 'Human'
-            source_probs = {source: 0.0 for source in ai_sources}
-            source_probs['Human'] = 1.0
+            source = 'Uncertain'
+            prediction_label = 'Uncertain'
         
-        # Run security analysis
+        # Calculate probabilities
+        ai_prob = float(prediction)
+        human_prob = 1.0 - ai_prob
+        
+        # Analyze code for security vulnerabilities
         security_analysis = analyze_code_vulnerabilities(code)
         
-        # Log performance metrics
+        # Calculate processing time
         processing_time = time.time() - start_time
-        logging.info(f"Code analysis completed in {processing_time:.2f}s (length: {len(code)})")
         
+        # Return results
         return {
-            'prediction': 'AI' if confidence > 0.5 else 'Human',
-            'confidence': round(confidence if confidence > 0.5 else 1 - confidence, 3),
-            'source': detected_source,
-            'source_probabilities': {k: round(v, 3) for k, v in source_probs.items()},
-            'features': {name: float(value) for name, value in zip(FEATURE_NAMES, features[0])},
+            'prediction': prediction_label,
+            'confidence': round(max(ai_prob, human_prob), 3),
+            'source': source,
+            'source_probabilities': {
+                'AI': round(ai_prob, 3),
+                'Human': round(human_prob, 3)
+            },
+            'features': {name: float(value) for name, value in features.items()},
             'security_analysis': security_analysis,
             'risk_score': round(security_analysis['risk_level'], 1),
             'processing_time_ms': round(processing_time * 1000)
@@ -453,14 +453,23 @@ def predict_code(code: str, model=None, tokenizer=None, scaler=None) -> Dict[str
     except Exception as e:
         processing_time = time.time() - start_time
         logging.error(f"Code analysis error after {processing_time:.2f}s: {str(e)}")
+        logging.error(traceback.format_exc())
         
         # Provide a simplified response in case of errors
         return {
             'error': str(e),
-            'prediction': 'Unknown',
+            'prediction': 'Error',
             'confidence': 0,
             'source': 'Error',
             'risk_score': 0,
+            'security_analysis': {
+                'vulnerabilities': [],
+                'code_quality': {},
+                'risk_level': 0,
+                'high_risk': False,
+                'medium_risk': False,
+                'low_risk': False
+            },
             'processing_time_ms': round(processing_time * 1000)
         }
 

@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout, Input, Concatenate, BatchNormalization, Bidirectional
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout, Input, Concatenate, BatchNormalization, Bidirectional, concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -15,6 +15,9 @@ import random
 from collections import defaultdict
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+import pickle
+import traceback
+from tensorflow.keras.optimizers import Adam
 
 # Logging konfigürasyonu
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -90,134 +93,154 @@ DOCSTRINGS = ['Process user data and return results', 'Validate input parameters
             'Calculate statistics based on input values']
 COLLECTIONS = ['range(10)', 'data', 'users', 'results.items()', 'options.keys()', 'enumerate(values)']
 
-def generate_random_code_line(is_ai=False):
-    """Generate a random line of code based on is_ai flag"""
-    templates = AI_TEMPLATES if is_ai else HUMAN_TEMPLATES
-    template = random.choice(templates)
+def generate_random_code_line(is_ai=False, depth=0):
+    """
+    Generate a random line of code for synthetic data
     
-    # Random variable for indentation
-    indent = '    ' * random.randint(0, 3)
+    Args:
+        is_ai: Whether to generate AI-like or human-like code
+        depth: Current recursion depth to prevent stack overflow
     
-    # Fill in template with random values
-    template = template.replace('{func_name}', random.choice(FUNCTION_NAMES))
-    template = template.replace('{class_name}', random.choice(CLASS_NAMES))
-    template = template.replace('{var}', random.choice(VARIABLE_NAMES))
-    template = template.replace('{value}', f"'{random.choice(VARIABLE_NAMES)}'")
-    template = template.replace('{params}', ', '.join(random.sample(PARAMS, random.randint(0, 3))))
-    template = template.replace('{condition}', random.choice(CONDITIONS))
-    template = template.replace('{exception}', random.choice(EXCEPTIONS))
-    template = template.replace('{comment}', random.choice(COMMENTS))
-    template = template.replace('{docstring}', random.choice(DOCSTRINGS))
-    template = template.replace('{collection}', random.choice(COLLECTIONS))
-    template = template.replace('{filename}', f"'{random.choice(['data.txt', 'config.json', 'users.csv', 'log.txt'])}'")
-    template = template.replace('{mode}', random.choice(['r', 'w', 'a', 'rb', 'wb']))
-    template = template.replace('{file_var}', 'f')
-    template = template.replace('{error_var}', 'e')
-    template = template.replace('{module}', random.choice(['os', 'sys', 'json', 'datetime', 'pandas', 'numpy']))
-    template = template.replace('{import_item}', random.choice(['Path', 'defaultdict', 'Counter', 'datetime', 'array']))
+    Returns:
+        A string containing a synthetic code line
+    """
+    # Prevent infinite recursion
+    if depth > 3:  # Limit recursion depth
+        return "pass" if random.random() < 0.5 else "return None"
     
-    # Handle body replacements - these need to be indented properly
-    if '{body}' in template:
-        body_lines = []
-        for _ in range(random.randint(1, 5)):
-            sub_line = generate_random_code_line(is_ai)
-            if '\n' in sub_line:
-                # Handle multi-line replacements
-                sub_lines = sub_line.split('\n')
-                for sl in sub_lines:
-                    if sl:
-                        body_lines.append('    ' + sl)
-            else:
-                body_lines.append('    ' + sub_line)
-        template = template.replace('{body}', '\n'.join(body_lines))
+    # Templates for function declarations, conditionals, loops, etc.
+    templates = [
+        "def {func_name}({params}):",
+        "if {condition}:",
+        "for {var} in {iterable}:",
+        "while {condition}:",
+        "{var} = {value}",
+        "return {value}",
+        "class {class_name}:",
+        "try:",
+        "except Exception as e:",
+        "# {comment}"
+    ]
     
-    if '{else_body}' in template:
-        else_body_lines = []
-        for _ in range(random.randint(1, 3)):
-            sub_line = generate_random_code_line(is_ai)
-            if '\n' in sub_line:
-                sub_lines = sub_line.split('\n')
-                for sl in sub_lines:
-                    if sl:
-                        else_body_lines.append('    ' + sl)
-            else:
-                else_body_lines.append('    ' + sub_line)
-        template = template.replace('{else_body}', '\n'.join(else_body_lines))
+    # Choose a template with different probabilities based on is_ai
+    if is_ai:
+        # AI code tends to use more structured patterns
+        template = random.choice(templates)
+    else:
+        # Human code might be more varied or use simpler constructs more often
+        weights = [0.2, 0.25, 0.15, 0.1, 0.3, 0.3, 0.1, 0.1, 0.1, 0.2]
+        template = random.choices(templates, weights=weights, k=1)[0]
     
-    if '{except_body}' in template:
-        except_body_lines = []
-        for _ in range(random.randint(1, 2)):
-            sub_line = generate_random_code_line(is_ai)
-            if '\n' in sub_line:
-                sub_lines = sub_line.split('\n')
-                for sl in sub_lines:
-                    if sl:
-                        except_body_lines.append('    ' + sl)
-            else:
-                except_body_lines.append('    ' + sub_line)
-        template = template.replace('{except_body}', '\n'.join(except_body_lines))
+    # Variables, function names, class names
+    FUNC_NAMES = ["get_data", "process_item", "calculate_value", "handle_request", "validate_input"]
+    VAR_NAMES = ["x", "y", "data", "result", "items", "values", "response"]
+    CLASS_NAMES = ["DataProcessor", "RequestHandler", "Validator", "Calculator", "Manager"]
+    PARAMS = ["data", "x", "y", "request", "options", "config"]
     
-    # Add indentation
-    template_lines = template.split('\n')
-    template = '\n'.join([indent + line for line in template_lines])
+    # Replace placeholders in the template
+    if "{func_name}" in template:
+        func_name = random.choice(FUNC_NAMES)
+        template = template.replace("{func_name}", func_name)
+    
+    if "{params}" in template:
+        # Use a list comprehension instead of random.sample to avoid recursion issues
+        param_count = random.randint(0, 3)
+        selected_params = []
+        for _ in range(param_count):
+            if PARAMS:  # Ensure PARAMS is not empty
+                selected_params.append(random.choice(PARAMS))
+        template = template.replace("{params}", ", ".join(selected_params))
+    
+    if "{var}" in template:
+        template = template.replace("{var}", random.choice(VAR_NAMES))
+    
+    if "{class_name}" in template:
+        template = template.replace("{class_name}", random.choice(CLASS_NAMES))
+    
+    if "{condition}" in template:
+        conditions = [
+            "x > 0", 
+            "len(data) > 0", 
+            "is_valid", 
+            "response.status_code == 200", 
+            "i < max_iterations"
+        ]
+        template = template.replace("{condition}", random.choice(conditions))
+    
+    if "{iterable}" in template:
+        iterables = ["range(10)", "data", "values", "items", "response.json()"]
+        template = template.replace("{iterable}", random.choice(iterables))
+    
+    if "{value}" in template:
+        values = [
+            "0", 
+            "1", 
+            "True", 
+            "False", 
+            "[]", 
+            "{}", 
+            "None", 
+            "input_data", 
+            "process_data()"
+        ]
+        template = template.replace("{value}", random.choice(values))
+    
+    if "{comment}" in template:
+        comments = [
+            "TODO: Implement this function",
+            "Process the data",
+            "Validate user input",
+            "Handle edge cases",
+            "Fix this later"
+        ]
+        template = template.replace("{comment}", random.choice(comments))
+    
+    # Add complexity for AI-generated code (sometimes add a nested or continuation line)
+    if is_ai and random.random() < 0.3 and depth < 2:
+        if template.endswith(":"):  # For blocks that need indentation
+            # Generate a sub-line with increased depth to avoid infinite recursion
+            sub_line = generate_random_code_line(is_ai, depth + 1)
+            template += "\n    " + sub_line  # Add indentation
     
     return template
 
 def generate_synthetic_data(num_samples=2000):
     """
-    Generate more realistic synthetic data for training
+    Generate synthetic code samples with labels
     
     Args:
-        num_samples: Number of samples to generate (half human, half AI)
+        num_samples: Number of samples to generate
         
     Returns:
-        code_samples: Array of code samples
-        labels: Binary labels (0=human, 1=AI)
+        tuple of (code_samples, labels)
     """
-    logging.info(f"Generating {num_samples} synthetic code samples...")
-    
-    # Set random seed for reproducibility
-    set_random_seed()
-    
-    # Initialize empty lists
     code_samples = []
     labels = []
     
-    # Generate human-like code samples
-    for i in range(num_samples // 2):
-        # How many lines of code to generate
-        num_lines = random.randint(10, 100)
+    for _ in range(num_samples // 2):
+        # Generate AI code (more structured, longer functions)
+        lines = []
+        num_lines = random.randint(3, 7)  # AI tends to generate more complete functions
         
-        # Generate code by randomly selecting templates
-        code_lines = []
-        for _ in range(num_lines // 3):  # Each template can generate multiple lines
-            code_lines.append(generate_random_code_line(is_ai=False))
+        for _ in range(num_lines):
+            lines.append(generate_random_code_line(is_ai=True))
         
-        # Join lines with proper spacing
-        code = '\n\n'.join(code_lines)
+        code = "\n".join(lines)
         code_samples.append(code)
-        labels.append(0)  # 0 = Human
-    
-    # Generate AI-like code samples
-    for i in range(num_samples // 2):
-        # AI tends to generate more consistent, structured code
-        num_lines = random.randint(15, 120)
+        labels.append(1)  # AI code is labeled as 1
         
-        # Generate code by randomly selecting templates
-        code_lines = []
-        for _ in range(num_lines // 3):  # Each template can generate multiple lines
-            code_lines.append(generate_random_code_line(is_ai=True))
+        # Generate human-like code (more varied, potentially shorter or less structured)
+        lines = []
+        num_lines = random.randint(2, 5)  # Human code might be more concise
         
-        # Join lines with proper spacing
-        code = '\n\n'.join(code_lines)
+        for _ in range(num_lines):
+            lines.append(generate_random_code_line(is_ai=False))
+        
+        code = "\n".join(lines)
         code_samples.append(code)
-        labels.append(1)  # 1 = AI
+        labels.append(0)  # Human code is labeled as 0
     
-    # Shuffle the data
-    indices = np.arange(len(code_samples))
-    np.random.shuffle(indices)
-    
-    return np.array(code_samples)[indices], np.array(labels)[indices]
+    return code_samples, labels
 
 def extract_code_features(code):
     """
@@ -308,117 +331,137 @@ def calculate_naming_consistency(names):
     return max_style / total if total > 0 else 1.0
 
 def build_model(input_shape, feature_shape):
-    """Build an improved model architecture with bidirectional LSTM"""
-    # Text input branch
-    text_input = Input(shape=(input_shape,), name='text_input')
-    embedding = Embedding(MAX_VOCAB_SIZE, EMBEDDING_DIM, mask_zero=True)(text_input)
-    bi_lstm = Bidirectional(LSTM(128, dropout=0.3, recurrent_dropout=0.3))(embedding)
-    text_features = Dense(64, activation='relu')(bi_lstm)
+    """
+    Build and compile the model
     
-    # Handcrafted features branch
-    feature_input = Input(shape=(feature_shape,), name='feature_input')
-    feature_dense1 = Dense(64, activation='relu')(feature_input)
-    feature_dense2 = Dense(32, activation='relu')(feature_dense1)
+    Args:
+        input_shape: Shape of the sequence input
+        feature_shape: Shape of the feature input
+        
+    Returns:
+        compiled model
+    """
+    # Text input branch (sequences)
+    text_input = Input(shape=(input_shape,))
+    embedding = Embedding(input_dim=MAX_VOCAB_SIZE, output_dim=EMBEDDING_DIM, input_length=input_shape)(text_input)
     
-    # Combine both branches
-    combined = Concatenate()([text_features, feature_dense2])
-    bn = BatchNormalization()(combined)
-    dense1 = Dense(64, activation='relu')(bn)
-    dropout1 = Dropout(0.4)(dense1)
-    dense2 = Dense(32, activation='relu')(dropout1)
-    dropout2 = Dropout(0.3)(dense2)
+    # Bidirectional LSTM for better sequence understanding
+    lstm = Bidirectional(LSTM(64, return_sequences=True, dropout=0.2))(embedding)
+    lstm = Bidirectional(LSTM(32, dropout=0.2))(lstm)
+    
+    # Feature input branch (numerical features)
+    feature_input = Input(shape=(feature_shape,))
+    feature_dense = Dense(64, activation='relu')(feature_input)
+    feature_dense = Dropout(0.3)(feature_dense)
+    feature_dense = Dense(32, activation='relu')(feature_dense)
+    
+    # Concatenate both branches
+    concatenated = concatenate([lstm, feature_dense])
     
     # Output layer
-    output = Dense(1, activation='sigmoid')(dropout2)
+    dense = Dense(64, activation='relu')(concatenated)
+    dense = Dropout(0.4)(dense)
+    dense = Dense(32, activation='relu')(dense)
+    output = Dense(1, activation='sigmoid')(dense)
     
-    # Create model
+    # Create and compile model
     model = Model(inputs=[text_input, feature_input], outputs=output)
     
-    # Compile with better metrics
+    # Use Adam optimizer with learning rate scheduling
+    optimizer = Adam(learning_rate=0.001)
+    
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=5e-4),
         loss='binary_crossentropy',
-        metrics=[
-            'accuracy',
-            tf.keras.metrics.Precision(name='precision'),
-            tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.AUC(name='auc'),
-            tf.keras.metrics.F1Score(name='f1_score')
-        ]
+        optimizer=optimizer,
+        metrics=['accuracy']
     )
+    
     return model
 
 def train_model():
     """
-    Train a code analysis model for AI detection
-    
-    Returns:
-        model: Trained model
-        tokenizer: Fitted tokenizer
-        scaler: Fitted scaler
+    Main function to load data, extract features, train and save the model
     """
     try:
-        # Set up logging
-        logging.basicConfig(level=logging.INFO)
+        set_random_seed()
+        logging.info("Starting model training process")
         
-        # Create output directory if it doesn't exist
+        # Create directories for model and data storage if they don't exist
         model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
         os.makedirs(model_dir, exist_ok=True)
         
-        # Set random seed for reproducibility
-        set_random_seed()
+        # Paths for saving models and tokenizers
+        model_path = os.path.join(model_dir, 'code_classifier_model.h5')
+        tokenizer_path = os.path.join(model_dir, 'tokenizer.pkl')
+        scaler_path = os.path.join(model_dir, 'scaler.pkl')
         
-        # Load CSV data if available
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        csv_data_path_root = os.path.join(project_root, 'data')
-        csv_data_path_backend = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
-        
-        # Create directories if they don't exist
-        os.makedirs(csv_data_path_backend, exist_ok=True)
-        
+        # Load existing data from CSV files
         real_code_samples = []
         real_labels = []
         
-        # Try both data directories
-        for csv_data_path in [csv_data_path_root, csv_data_path_backend]:
-            logging.info(f"Looking for CSV files in {csv_data_path}")
-            
-            if not os.path.exists(csv_data_path):
-                logging.warning(f"Directory does not exist: {csv_data_path}")
+        # Look for data CSV files in both project root and backend/data directories
+        csv_data_path_root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '..', 'data')
+        csv_data_path_backend = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
+        
+        # Check if directories exist
+        for data_dir in [csv_data_path_root, csv_data_path_backend]:
+            if not os.path.exists(data_dir):
+                logging.warning(f"Data directory not found: {data_dir}")
                 continue
                 
-            # Process standard CSV files
-            for filename in os.listdir(csv_data_path):
-                if filename.endswith('.csv') and not filename.startswith('merged_'):
-                    csv_path = os.path.join(csv_data_path, filename)
-                    logging.info(f"Loading data from {csv_path}")
-                    try:
-                        df = pd.read_csv(csv_path)
-                        
-                        # Check required columns
-                        if 'code' in df.columns and 'is_ai_generated' in df.columns:
-                            valid_samples = df['code'].dropna().tolist()
-                            valid_labels = df['is_ai_generated'].dropna().astype(int).tolist()
-                            
-                            if len(valid_samples) > 0:
-                                real_code_samples.extend(valid_samples)
-                                real_labels.extend(valid_labels)
-                                logging.info(f"Added {len(valid_samples)} samples from {filename}")
-                        else:
-                            logging.warning(f"CSV file {filename} does not have required columns (code, is_ai_generated)")
-                    except Exception as e:
-                        logging.error(f"Error loading CSV file {filename}: {str(e)}")
+            logging.info(f"Looking for CSV files in {data_dir}")
             
-            # Process merged AI and human files
-            ai_file_path = os.path.join(csv_data_path, 'merged_AI_files.csv')
-            human_file_path = os.path.join(csv_data_path, 'merged_human_files.csv')
+            # Try to load the standard CSV file with code samples
+            csv_file = os.path.join(data_dir, 'code_samples.csv')
+            if os.path.exists(csv_file):
+                logging.info(f"Loading data from {csv_file}")
+                try:
+                    # Use error_bad_lines=False (pandas <1.3) or on_bad_lines='skip' (pandas >=1.3)
+                    # to skip problematic rows rather than failing
+                    try:
+                        df = pd.read_csv(csv_file, quotechar='"', escapechar='\\', 
+                                         on_bad_lines='skip')
+                    except TypeError:
+                        # For older pandas versions
+                        df = pd.read_csv(csv_file, quotechar='"', escapechar='\\', 
+                                         error_bad_lines=False)
+                        
+                    if 'code' in df.columns and 'is_ai_generated' in df.columns:
+                        for _, row in df.iterrows():
+                            try:
+                                if pd.notna(row['code']) and pd.notna(row['is_ai_generated']):
+                                    real_code_samples.append(str(row['code']))
+                                    real_labels.append(int(row['is_ai_generated']))
+                            except Exception as e:
+                                logging.warning(f"Error processing row: {e}")
+                                continue
+                    else:
+                        logging.warning("CSV file does not have required columns: code, is_ai_generated")
+                except Exception as e:
+                    logging.error(f"Error loading CSV file code_samples.csv: {str(e)}")
+            
+            # Try to load merged AI and human files
+            ai_file_path = os.path.join(data_dir, 'merged_AI_files.csv')
+            human_file_path = os.path.join(data_dir, 'merged_human_files.csv')
             
             try:
                 # Load AI samples
                 if os.path.exists(ai_file_path):
-                    ai_df = pd.read_csv(ai_file_path, on_bad_lines='skip')
+                    try:
+                        ai_df = pd.read_csv(ai_file_path, on_bad_lines='skip', 
+                                           quotechar='"', escapechar='\\')
+                    except TypeError:
+                        ai_df = pd.read_csv(ai_file_path, error_bad_lines=False, 
+                                           quotechar='"', escapechar='\\')
+                        
                     if 'Content' in ai_df.columns:
-                        ai_samples = ai_df['Content'].dropna().tolist()
+                        ai_samples = []
+                        for content in ai_df['Content'].dropna():
+                            try:
+                                ai_samples.append(str(content))
+                            except Exception as e:
+                                logging.warning(f"Error processing AI sample: {e}")
+                        
                         # Add all as AI-generated (label 1)
                         real_code_samples.extend(ai_samples)
                         real_labels.extend([1] * len(ai_samples))
@@ -430,9 +473,21 @@ def train_model():
                     
                 # Load human samples
                 if os.path.exists(human_file_path):
-                    human_df = pd.read_csv(human_file_path, on_bad_lines='skip')
+                    try:
+                        human_df = pd.read_csv(human_file_path, on_bad_lines='skip',
+                                              quotechar='"', escapechar='\\')
+                    except TypeError:
+                        human_df = pd.read_csv(human_file_path, error_bad_lines=False,
+                                              quotechar='"', escapechar='\\')
+                        
                     if 'Content' in human_df.columns:
-                        human_samples = human_df['Content'].dropna().tolist()
+                        human_samples = []
+                        for content in human_df['Content'].dropna():
+                            try:
+                                human_samples.append(str(content))
+                            except Exception as e:
+                                logging.warning(f"Error processing human sample: {e}")
+                                
                         # Add all as human-written (label 0)
                         real_code_samples.extend(human_samples)
                         real_labels.extend([0] * len(human_samples))
@@ -454,104 +509,144 @@ def train_model():
             logging.warning("No real data files were loaded!")
         
         # Generate synthetic data to supplement if needed
-        synthetic_code_samples, synthetic_labels = generate_synthetic_data(3000)  # Reduced sample size since we have real data
+        logging.info("Generating synthetic data to supplement real data...")
+        # Reduce the number of synthetic samples to avoid memory issues
+        num_synthetic = 500 if len(real_code_samples) > 0 else 1000 
+        synthetic_code_samples, synthetic_labels = generate_synthetic_data(num_synthetic)
         
         # Combine real data with synthetic data
         if len(real_code_samples) > 0:
             logging.info(f"Combining {len(real_code_samples)} real samples with {len(synthetic_code_samples)} synthetic samples")
             
-            # Balance the dataset if needed
-            ai_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 1]
-            human_samples = [sample for sample, label in zip(real_code_samples, real_labels) if label == 0]
-            
-            logging.info(f"Real data distribution: {len(ai_samples)} AI, {len(human_samples)} human")
-            
-            # Add real samples to the training data
-            code_samples = real_code_samples + synthetic_code_samples
-            labels = real_labels + synthetic_labels
+            # Ensure we have a mix of both AI and human code
+            if ai_count == 0 or human_count == 0:
+                logging.warning(f"Imbalanced dataset: {ai_count} AI, {human_count} human. Using more synthetic data.")
+                code_samples = real_code_samples + synthetic_code_samples
+                labels = real_labels + synthetic_labels
+            else:
+                # If we have enough real data of both types, we can rely more on it
+                code_samples = real_code_samples.copy()
+                labels = real_labels.copy()
+                
+                # Add a smaller proportion of synthetic data for robustness
+                synthetic_indices = np.random.choice(range(len(synthetic_code_samples)), 
+                                                   size=min(len(synthetic_code_samples), len(real_code_samples)//2),
+                                                   replace=False)
+                code_samples.extend([synthetic_code_samples[i] for i in synthetic_indices])
+                labels.extend([synthetic_labels[i] for i in synthetic_indices])
         else:
-            logging.info("No real data found, using only synthetic data")
+            logging.warning("No real data available, using only synthetic data")
             code_samples = synthetic_code_samples
             labels = synthetic_labels
         
-        # Convert labels to numpy array
+        # Convert to numpy arrays
+        code_samples = np.array(code_samples)
         labels = np.array(labels)
         
-        # Extract features from code
-        logging.info("Extracting features from code...")
-        features = []
-        for code in code_samples:
+        # Shuffle the data
+        indices = np.arange(len(code_samples))
+        np.random.shuffle(indices)
+        code_samples = code_samples[indices]
+        labels = labels[indices]
+        
+        logging.info(f"Total dataset size: {len(code_samples)} samples")
+        logging.info("Extracting features from code samples...")
+        
+        # Extract features
+        X_features = []
+        skipped_samples = 0
+        
+        for i, code in enumerate(code_samples):
             try:
-                # Convert to string if not already
-                if not isinstance(code, str):
-                    code = str(code)
-                features.append(extract_code_features(code))
+                features = extract_code_features(code)
+                X_features.append(features)
             except Exception as e:
-                logging.error(f"Error extracting features: {str(e)[:100]}")
-                # Use an empty feature set as fallback
-                features.append(np.zeros(len(FEATURE_NAMES)))
+                skipped_samples += 1
+                # Replace with a default feature vector if extraction fails
+                X_features.append([0] * len(FEATURE_NAMES))
+                if skipped_samples <= 5:  # Only log the first few failures to avoid spam
+                    logging.error(f"Error extracting features from sample {i}: {str(e)}")
+                if skipped_samples == 6:
+                    logging.warning("Additional feature extraction errors will be suppressed")
         
-        features = np.array(features)
+        if skipped_samples > 0:
+            logging.warning(f"Skipped {skipped_samples} samples due to feature extraction errors")
         
-        # Create and fit scaler
+        # Convert to DataFrame for better handling
+        X_df = pd.DataFrame(X_features, columns=FEATURE_NAMES)
+        y = labels
+        
+        # Handle missing values
+        X_df.fillna(0, inplace=True)
+        
+        # Train test split
+        X_train, X_test, y_train, y_test = train_test_split(X_df, y, test_size=0.2, random_state=42)
+        
+        # Standardize features
         scaler = StandardScaler()
-        scaled_features = scaler.fit_transform(features)
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
         
-        # Create and fit tokenizer
-        tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token='<OOV>')
-        tokenizer.fit_on_texts(code_samples)
+        # Convert to sequences for LSTM model
+        X_train_text = [' '.join(map(str, features)) for features in X_train.values]
+        X_test_text = [' '.join(map(str, features)) for features in X_test.values]
         
-        # Convert text to sequences
-        sequences = tokenizer.texts_to_sequences(code_samples)
-        padded_sequences = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
+        # Tokenize text features
+        tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE)
+        tokenizer.fit_on_texts(X_train_text)
         
-        # Build the model
-        model = build_model(padded_sequences.shape[1:], scaled_features.shape[1:])
+        X_train_seq = tokenizer.texts_to_sequences(X_train_text)
+        X_test_seq = tokenizer.texts_to_sequences(X_test_text)
         
-        # Split the dataset
-        X_text_train, X_text_test, X_features_train, X_features_test, y_train, y_test = train_test_split(
-            padded_sequences, scaled_features, labels, test_size=0.2, random_state=42, stratify=labels
-        )
+        # Pad sequences to ensure uniform length
+        X_train_padded = pad_sequences(X_train_seq, maxlen=MAX_SEQUENCE_LENGTH)
+        X_test_padded = pad_sequences(X_test_seq, maxlen=MAX_SEQUENCE_LENGTH)
+        
+        logging.info("Building model...")
+        model = build_model(MAX_SEQUENCE_LENGTH, X_train_scaled.shape[1])
         
         # Train the model
         logging.info("Training model...")
         history = model.fit(
-            [X_text_train, X_features_train], 
-            y_train,
-            validation_data=([X_text_test, X_features_test], y_test),
-            epochs=10,
+            [X_train_padded, X_train_scaled], y_train,
+            validation_data=([X_test_padded, X_test_scaled], y_test),
+            epochs=6,
             batch_size=32,
             verbose=1
         )
         
-        # Evaluate the model
-        loss, accuracy = model.evaluate([X_text_test, X_features_test], y_test, verbose=0)
-        logging.info(f"Test accuracy: {accuracy:.4f}")
+        # Evaluate model
+        loss, accuracy = model.evaluate([X_test_padded, X_test_scaled], y_test, verbose=0)
+        logging.info(f"Model evaluation - Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
         
-        # Save the model
-        model_path = os.path.join(model_dir, 'code_analysis_model.h5')
+        # Save model and tokenizer
+        logging.info(f"Saving model to {model_path}")
         model.save(model_path)
-        logging.info(f"Model saved to {model_path}")
         
-        # Save the tokenizer
-        tokenizer_json = tokenizer.to_json()
-        tokenizer_path = os.path.join(model_dir, 'tokenizer.json')
-        with open(tokenizer_path, 'w') as f:
-            f.write(tokenizer_json)
-        logging.info(f"Tokenizer saved to {tokenizer_path}")
+        with open(tokenizer_path, 'wb') as f:
+            pickle.dump(tokenizer, f)
+            
+        with open(scaler_path, 'wb') as f:
+            pickle.dump(scaler, f)
+            
+        logging.info("Model training completed successfully")
         
-        # Save the scaler
-        scaler_path = os.path.join(model_dir, 'scaler.pkl')
-        joblib.dump(scaler, scaler_path)
-        logging.info(f"Scaler saved to {scaler_path}")
+        # Return success and model paths
+        return {
+            'success': True,
+            'model_path': model_path,
+            'tokenizer_path': tokenizer_path,
+            'scaler_path': scaler_path,
+            'accuracy': accuracy
+        }
         
-        return model, tokenizer, scaler
-    
     except Exception as e:
         logging.error(f"Error in train_model: {str(e)}")
-        import traceback
         logging.error(traceback.format_exc())
-        raise
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 if __name__ == "__main__":
     train_model()

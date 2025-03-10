@@ -166,7 +166,7 @@ train_model() {
 start_backend() {
   print_color "blue" "Starting the backend server..."
   
-  # Activate virtual environment
+  # Activate virtual environment based on OS
   if [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
     # Windows
     venv/Scripts/activate
@@ -175,26 +175,45 @@ start_backend() {
     source venv/bin/activate
   fi
   
-  # Run the FastAPI server
-  cd backend
-  python -c "from utils.setup import setup_directories; setup_directories()"
-  cd ..
+  # Run setup to ensure directories and files exist
+  print_color "blue" "Running backend setup..."
+  python -m backend.api.setup
   
+  if [ $? -ne 0 ]; then
+    print_color "red" "Backend setup failed. Check logs for details."
+    exit 1
+  fi
+  
+  # Check for model files and train if missing
+  MODEL_PATH="backend/ml/models/code_classifier_model.h5"
+  if [ ! -f "$MODEL_PATH" ]; then
+    print_color "yellow" "ML model not found. Running model training..."
+    python -m backend.ml.models.train_model
+    
+    if [ $? -ne 0 ]; then
+      print_color "yellow" "Model training had issues, but we'll try to start the backend anyway."
+    else
+      print_color "green" "Model training completed successfully."
+    fi
+  fi
+  
+  # Run the FastAPI server with increased wait time
+  print_color "blue" "Starting FastAPI server..."
   uvicorn backend.api.app:app --reload --host 0.0.0.0 --port 8000 &
   BACKEND_PID=$!
   
   print_color "green" "Backend server started with PID: $BACKEND_PID"
   
   # Wait for backend to start
-  print_color "yellow" "Waiting for backend to start..."
+  print_color "yellow" "Waiting for backend to start (5 seconds)..."
   sleep 5
   
   # Check if backend is running
-  if ps -p $BACKEND_PID > /dev/null; then
-    print_color "green" "Backend is running."
-  else
-    print_color "red" "Backend failed to start. Check the logs for details."
+  if ! kill -0 $BACKEND_PID 2>/dev/null; then
+    print_color "red" "Backend failed to start. Check logs for details."
     exit 1
+  else
+    print_color "green" "Backend server is running."
   fi
 }
 

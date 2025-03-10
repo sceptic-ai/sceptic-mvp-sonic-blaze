@@ -116,24 +116,45 @@ CONTRACT_UPDATES_DIR = os.path.join(os.path.dirname(__file__), "../data/contract
 
 @app.on_event("startup")
 async def startup_event():
-    """Uygulama başladığında ML modelini yükle ve blockchain bağlantısını kontrol et"""
-    global model, tokenizer, scaler
+    """
+    Initialize necessary components during startup
+    """
+    logging.info("Starting Sceptic AI API")
     
-    # Set up necessary directories
-    setup_directories()
-    
+    # Ensure directories are properly set up
     try:
-        model, tokenizer, scaler = load_model()
-        logging.info("ML model loaded successfully")
-        
-        # Blockchain bağlantısını kontrol et
-        blockchain_connected = check_connection()
-        if blockchain_connected:
-            logging.info("Blockchain connection successful")
-        else:
-            logging.warning("Blockchain connection failed. Some features may not work.")
+        from backend.api.setup import setup_backend_directories
+        setup_backend_directories()
+        logging.info("Backend directories initialized")
     except Exception as e:
-        logging.error(f"Startup error: {str(e)}")
+        logging.error(f"Error setting up directories: {str(e)}")
+    
+    # Initialize background processing queue
+    global analysis_results
+    analysis_results = {}
+    
+    # Check if ML model files exist, try to load model
+    try:
+        # Pre-load model for faster inference
+        model, tokenizer, scaler = load_model()
+        if model is not None:
+            logging.info("ML model loaded successfully")
+        else:
+            logging.warning("ML model could not be loaded. Code analysis will use fallback method.")
+    except Exception as e:
+        logging.error(f"Error loading ML model: {str(e)}")
+    
+    # Verify blockchain connection if applicable
+    try:
+        blockchain_status = check_connection()
+        if blockchain_status:
+            logging.info("Blockchain connection established")
+        else:
+            logging.warning("Blockchain connection could not be established. Some features will be limited.")
+    except Exception as e:
+        logging.error(f"Error checking blockchain connection: {str(e)}")
+    
+    logging.info("Sceptic AI API ready")
 
 @app.get("/")
 async def root():
