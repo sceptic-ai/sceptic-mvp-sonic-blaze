@@ -70,7 +70,28 @@ setup_environment() {
   # Create directories if they don't exist
   mkdir -p data
   mkdir -p backend/logs
+  mkdir -p backend/ml/models
+  mkdir -p backend/data/contract_updates
   
+  # Copy sample CSV files to ensure they're in the right location if they aren't already
+  if [ -f "data/merged_AI_files.csv" ] && [ ! -f "backend/data/merged_AI_files.csv" ]; then
+    mkdir -p backend/data
+    cp data/merged_AI_files.csv backend/data/
+    print_color "green" "Copied AI files to backend data directory"
+  fi
+  
+  if [ -f "data/merged_human_files.csv" ] && [ ! -f "backend/data/merged_human_files.csv" ]; then
+    mkdir -p backend/data
+    cp data/merged_human_files.csv backend/data/
+    print_color "green" "Copied human files to backend data directory"
+  fi
+  
+  if [ -f "data/code_samples.csv" ] && [ ! -f "backend/data/code_samples.csv" ]; then
+    mkdir -p backend/data
+    cp data/code_samples.csv backend/data/
+    print_color "green" "Copied code samples to backend data directory"
+  fi
+
   # Check if .env file exists
   if [ ! -f .env ]; then
     print_color "yellow" "Creating default .env file..."
@@ -104,8 +125,17 @@ EOL
   
   # Activate virtual environment and install requirements
   print_color "yellow" "Installing Python dependencies..."
-  source venv/bin/activate || source venv/Scripts/activate
-  pip install -r backend/requirements.txt
+  if [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    # Windows
+    venv/Scripts/activate
+    pip install --upgrade pip
+    pip install -r backend/requirements.txt
+  else
+    # macOS/Linux
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install -r backend/requirements.txt
+  fi
   print_color "green" "Python dependencies installed."
   
   # Install npm dependencies
@@ -137,9 +167,19 @@ start_backend() {
   print_color "blue" "Starting the backend server..."
   
   # Activate virtual environment
-  source venv/bin/activate || source venv/Scripts/activate
+  if [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    # Windows
+    venv/Scripts/activate
+  else
+    # macOS/Linux
+    source venv/bin/activate
+  fi
   
   # Run the FastAPI server
+  cd backend
+  python -c "from utils.setup import setup_directories; setup_directories()"
+  cd ..
+  
   uvicorn backend.api.app:app --reload --host 0.0.0.0 --port 8000 &
   BACKEND_PID=$!
   
@@ -147,7 +187,15 @@ start_backend() {
   
   # Wait for backend to start
   print_color "yellow" "Waiting for backend to start..."
-  sleep 3
+  sleep 5
+  
+  # Check if backend is running
+  if ps -p $BACKEND_PID > /dev/null; then
+    print_color "green" "Backend is running."
+  else
+    print_color "red" "Backend failed to start. Check the logs for details."
+    exit 1
+  fi
 }
 
 # Start the frontend

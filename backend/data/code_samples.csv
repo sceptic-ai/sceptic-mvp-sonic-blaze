@@ -1,0 +1,204 @@
+code,is_ai_generated,language
+"def calculate_fibonacci(n):
+    """Calculate the nth Fibonacci number recursively."""
+    if n <= 0:
+        return 0
+    elif n == 1:
+        return 1
+    else:
+        return calculate_fibonacci(n-1) + calculate_fibonacci(n-2)
+
+def optimize_fibonacci(n):
+    """Calculate Fibonacci numbers efficiently using dynamic programming."""
+    fib = [0, 1]
+    for i in range(2, n+1):
+        fib.append(fib[i-1] + fib[i-2])
+    return fib[n]",1,python
+"import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# Load data
+data = pd.read_csv('data.csv')
+X = data.drop('target', axis=1)
+y = data['target']
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Evaluate
+predictions = model.predict(X_test)
+accuracy = accuracy_score(y_test, predictions)
+print(f'Model accuracy: {accuracy:.4f}')",1,python
+"function calculateTotalPrice(items) {
+  let total = 0;
+  
+  for (let i = 0; i < items.length; i++) {
+    total += items[i].price * items[i].quantity;
+    
+    // Apply discount if applicable
+    if (items[i].discount) {
+      total -= items[i].discount;
+    }
+  }
+  
+  // Add tax
+  total *= 1.08;
+  
+  return total.toFixed(2);
+}",1,javascript
+"import React, { useState, useEffect } from 'react';
+
+function DataFetchingComponent() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch('https://api.example.com/data')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        setData(data);
+        setLoading(false);
+      })
+      .catch(error => {
+        setError(error.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  return (
+    <div>
+      <h2>Data</h2>
+      <ul>
+        {data.map(item => (
+          <li key={item.id}>{item.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}",1,javascript
+"#include <stdio.h>
+
+int main() {
+    int numbers[10];
+    int sum = 0;
+    float average;
+    
+    printf(\"Enter 10 numbers:\\n\");
+    
+    // Input numbers and calculate sum
+    for(int i = 0; i < 10; i++) {
+        printf(\"Number %d: \", i+1);
+        scanf(\"%d\", &numbers[i]);
+        sum += numbers[i];
+    }
+    
+    // Calculate average
+    average = (float)sum / 10;
+    
+    printf(\"\\nSum: %d\\n\", sum);
+    printf(\"Average: %.2f\\n\", average);
+    
+    return 0;
+}",0,c
+"def bubble_sort(arr):
+    n = len(arr)
+    
+    for i in range(n):
+        swapped = False
+        
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+                swapped = True
+        
+        if not swapped:
+            break
+    
+    return arr
+
+# Test the function
+test_arr = [64, 34, 25, 12, 22, 11, 90]
+print(\"Original array:\", test_arr)
+sorted_arr = bubble_sort(test_arr)
+print(\"Sorted array:\", sorted_arr)",0,python
+"// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SimpleStorage {
+    uint256 private data;
+    
+    event DataChanged(uint256 newValue, address changedBy);
+    
+    function set(uint256 x) public {
+        data = x;
+        emit DataChanged(x, msg.sender);
+    }
+    
+    function get() public view returns (uint256) {
+        return data;
+    }
+}",0,solidity
+"fn calculate_factorial(n: u64) -> u64 {
+    if n == 0 || n == 1 {
+        return 1;
+    }
+    
+    let mut result = 1;
+    for i in 2..=n {
+        result *= i;
+    }
+    
+    result
+}
+
+fn main() {
+    let number = 5;
+    let factorial = calculate_factorial(number);
+    println!(\"Factorial of {} is {}\", number, factorial);
+}",0,rust
+"import java.util.Scanner;
+
+public class TemperatureConverter {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        
+        System.out.println(\"Temperature Converter\");
+        System.out.println(\"1. Celsius to Fahrenheit\");
+        System.out.println(\"2. Fahrenheit to Celsius\");
+        System.out.print(\"Choose option (1/2): \");
+        
+        int option = scanner.nextInt();
+        
+        if (option == 1) {
+            System.out.print(\"Enter temperature in Celsius: \");
+            double celsius = scanner.nextDouble();
+            double fahrenheit = (celsius * 9/5) + 32;
+            System.out.printf(\"%.1f°C is equal to %.1f°F\", celsius, fahrenheit);
+        } else if (option == 2) {
+            System.out.print(\"Enter temperature in Fahrenheit: \");
+            double fahrenheit = scanner.nextDouble();
+            double celsius = (fahrenheit - 32) * 5/9;
+            System.out.printf(\"%.1f°F is equal to %.1f°C\", fahrenheit, celsius);
+        } else {
+            System.out.println(\"Invalid option!\");
+        }
+        
+        scanner.close();
+    }
+}",0,java 

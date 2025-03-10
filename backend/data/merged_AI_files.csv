@@ -1,0 +1,4211 @@
+Language,Content,Source
+Python,"""""""
+File: web_scraper.py
+This script fetches the HTML content of a given URL and scrapes specific information (example: all <h2> headings).
+Usage:
+    pip install requests beautifulsoup4
+    python web_scraper.py
+Example Output:
+    Found 3 <h2> headings on the page.
+""""""
+
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_headings(url):
+    """"""
+    Fetch the HTML content from the given URL and parse <h2> elements.
+    
+    Args:
+        url (str): A valid URL to scrape (must include http or https).
+    Returns:
+        list: A list of strings representing the text of each <h2> heading found.
+    """"""
+    # Send a GET request to the specified URL
+    response = requests.get(url)
+    
+    # Raise HTTPError if the request was unsuccessful
+    response.raise_for_status()
+    
+    # Parse the HTML content using BeautifulSoup
+    soup = BeautifulSoup(response.text, ""html.parser"")
+    
+    # Find all <h2> tags
+    h2_tags = soup.find_all(""h2"")
+    
+    # Extract text from each <h2> element
+    headings = [tag.get_text(strip=True) for tag in h2_tags]
+    
+    return headings
+
+def main():
+    # Example URL for demonstration purposes
+    example_url = ""https://example.com""
+    
+    # Scrape headings
+    headings_list = scrape_headings(example_url)
+    
+    # Print the results
+    print(f""Found {len(headings_list)} <h2> headings on the page."")
+    for i, heading in enumerate(headings_list, 1):
+        print(f""{i}. {heading}"")
+
+if __name__ == ""__main__"":
+    main()
+",chatgpt
+Ruby,"# File: ruby_scraper.rb
+# This script uses Nokogiri and open-uri to scrape all links (<a> tags) from a webpage.
+# Usage:
+#   gem install nokogiri
+#   ruby ruby_scraper.rb
+# Example Output:
+#   Found 5 links on the page.
+#   Link #1 -> https://example.com
+#   ...
+
+require 'nokogiri'
+require 'open-uri'
+
+def scrape_links(url)
+  # Open the URL and parse with Nokogiri
+  doc = Nokogiri::HTML(URI.open(url))
+  
+  # Find all <a> tags and map their href attributes
+  links = doc.css('a').map { |link| link['href'] }.compact
+  links
+end
+
+# Example usage
+if __FILE__ == $0
+  begin
+    example_url = ""https://example.com""
+    links_found = scrape_links(example_url)
+    puts ""Found #{links_found.size} links on the page.""
+    links_found.each_with_index do |lnk, idx|
+      puts ""Link ##{idx + 1} -> #{lnk}""
+    end
+  rescue StandardError => e
+    puts ""An error occurred: #{e.message}""
+  end
+end
+",chatgpt
+Rust,"// File: linear_search.rs
+// This Rust program performs a linear search for a target element in an integer array.
+// Usage:
+//   cargo run
+// Example Output:
+//   Enter a number to search: 25
+//   25 found at index 2
+
+use std::io;
+
+/// Performs a linear search on the given slice for the target value.
+/// Returns Some(index) if found, or None if not found.
+fn linear_search(arr: &[i32], target: i32) -> Option<usize> {
+    for (index, &value) in arr.iter().enumerate() {
+        if value == target {
+            return Some(index);
+        }
+    }
+    None
+}
+
+fn main() {
+    let arr = [10, 15, 25, 30, 45];
+    
+    println!(""Enter a number to search: "");
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).expect(""Failed to read line."");
+    let num: i32 = input.trim().parse().expect(""Please enter a valid integer."");
+    
+    match linear_search(&arr, num) {
+        Some(index) => println!(""{} found at index {}"", num, index),
+        None => println!(""{} not found in the array"", num),
+    }
+}
+",chatgpt
+PHP,"<?php
+/**
+ * File: mysqli_crud.php
+ * This PHP script demonstrates basic CRUD (Create, Read, Update, Delete) operations
+ * using the MySQLi extension with a MySQL database.
+ * 
+ * Usage:
+ *   1. Configure the $servername, $username, $password, and $dbname variables.
+ *   2. Run `php mysqli_crud.php`.
+ * Example Output:
+ *   Connected successfully.
+ *   Table persons created successfully (if not exists).
+ *   Inserted record John Doe, age 29
+ *   Inserted record Jane Smith, age 34
+ *   Reading records from database:
+ *   ID: 1, Name: John Doe, Age: 29
+ *   ID: 2, Name: Jane Smith, Age: 34
+ *   Updated record ID=1 to new age=30
+ *   Deleted record ID=2
+ */
+
+// Database configuration
+$servername = ""localhost"";
+$username = ""root"";
+$password = """";
+$dbname = ""test_db"";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password);
+
+// Check connection
+if ($conn->connect_error) {
+    die(""Connection failed: "" . $conn->connect_error);
+}
+echo ""Connected successfully.\n"";
+
+// Create database if it doesn't exist
+$conn->query(""CREATE DATABASE IF NOT EXISTS $dbname"");
+
+// Select database
+$conn->select_db($dbname);
+
+// Create table if it doesn't exist
+$createTableSQL = ""
+CREATE TABLE IF NOT EXISTS persons (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  age INT NOT NULL
+)"";
+if ($conn->query($createTableSQL) === true) {
+    echo ""Table persons created successfully (if not exists).\n"";
+}
+
+// Insert records
+insertRecord($conn, ""John Doe"", 29);
+insertRecord($conn, ""Jane Smith"", 34);
+
+// Read and display records
+readRecords($conn);
+
+// Update a record
+updateRecord($conn, 1, 30);
+
+// Delete a record
+deleteRecord($conn, 2);
+
+$conn->close();
+
+/**
+ * Insert a new record into the 'persons' table.
+ *
+ * @param mysqli $connection The MySQLi connection object.
+ * @param string $name The person's name.
+ * @param int $age The person's age.
+ * @return void
+ */
+function insertRecord($connection, $name, $age) {
+    $sql = ""INSERT INTO persons (name, age) VALUES (?, ?)"";
+    $stmt = $connection->prepare($sql);
+    $stmt->bind_param(""si"", $name, $age);
+    if ($stmt->execute()) {
+        echo ""Inserted record $name, age $age\n"";
+    }
+    $stmt->close();
+}
+
+/**
+ * Read and display all records from the 'persons' table.
+ *
+ * @param mysqli $connection The MySQLi connection object.
+ * @return void
+ */
+function readRecords($connection) {
+    $sql = ""SELECT id, name, age FROM persons"";
+    $result = $connection->query($sql);
+
+    echo ""Reading records from database:\n"";
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            echo ""ID: {$row['id']}, Name: {$row['name']}, Age: {$row['age']}\n"";
+        }
+    } else {
+        echo ""No records found.\n"";
+    }
+}
+
+/**
+ * Update a record's age in the 'persons' table by ID.
+ *
+ * @param mysqli $connection The MySQLi connection object.
+ * @param int $id The ID of the record to update.
+ * @param int $newAge The new age to be set.
+ * @return void
+ */
+function updateRecord($connection, $id, $newAge) {
+    $sql = ""UPDATE persons SET age=? WHERE id=?"";
+    $stmt = $connection->prepare($sql);
+    $stmt->bind_param(""ii"", $newAge, $id);
+    if ($stmt->execute()) {
+        echo ""Updated record ID=$id to new age=$newAge\n"";
+    }
+    $stmt->close();
+}
+
+/**
+ * Delete a record from the 'persons' table by ID.
+ *
+ * @param mysqli $connection The MySQLi connection object.
+ * @param int $id The ID of the record to delete.
+ * @return void
+ */
+function deleteRecord($connection, $id) {
+    $sql = ""DELETE FROM persons WHERE id=?"";
+    $stmt = $connection->prepare($sql);
+    $stmt->bind_param(""i"", $id);
+    if ($stmt->execute()) {
+        echo ""Deleted record ID=$id\n"";
+    }
+    $stmt->close();
+}
+",chatgpt
+Go,"// File: prime_check.go
+// This Go program determines if a given integer is prime.
+// Usage:
+//   go run prime_check.go
+// Example Output:
+//   Enter a number: 13
+//   13 is prime.
+
+package main
+
+import (
+    ""fmt""
+    ""math""
+)
+
+// isPrime checks if a given integer n is prime.
+func isPrime(n int) bool {
+    if n < 2 {
+        return false
+    }
+    // Only check divisibility up to the square root of n
+    limit := int(math.Sqrt(float64(n)))
+    for i := 2; i <= limit; i++ {
+        if n%i == 0 {
+            return false
+        }
+    }
+    return true
+}
+
+func main() {
+    var num int
+    fmt.Print(""Enter a number: "")
+    fmt.Scan(&num)
+
+    if isPrime(num) {
+        fmt.Printf(""%d is prime.\n"", num)
+    } else {
+        fmt.Printf(""%d is not prime.\n"", num)
+    }
+}
+",chatgpt
+Python,"""""""
+File: factorial.py
+This script calculates the factorial of a given non-negative integer.
+No external libraries are required.
+Usage:
+    python factorial.py
+Example Output:
+    Enter a non-negative integer: 5
+    Factorial of 5 is 120
+""""""
+
+def factorial(n):
+    """"""
+    Calculate the factorial of a non-negative integer n using an iterative approach.
+    
+    Args:
+        n (int): Non-negative integer whose factorial is to be computed.
+    Returns:
+        int: Factorial of n.
+        
+    Raises:
+        ValueError: If n is negative.
+    """"""
+    if n < 0:
+        raise ValueError(""n must be a non-negative integer."")
+    result = 1
+    
+    # We multiply result by each integer from 1 to n
+    for i in range(1, n+1):
+        result *= i
+    return result
+
+def main():
+    # Prompt user for input
+    num = int(input(""Enter a non-negative integer: ""))
+    # Calculate factorial
+    fact = factorial(num)
+    # Output the result
+    print(f""Factorial of {num} is {fact}"")
+
+if __name__ == ""__main__"":
+    main()
+",chatgpt
+C++,"/*
+File: DFS_Graph.cpp
+This program implements a graph using adjacency lists and performs a Depth-First Search traversal.
+Usage:
+    g++ DFS_Graph.cpp -o DFS_Graph
+    ./DFS_Graph
+Example Output:
+    DFS starting from vertex 0:
+    0 1 3 2
+*/
+
+#include <iostream>
+#include <vector>
+#include <stack>
+using namespace std;
+
+class Graph {
+private:
+    // Number of vertices
+    int V;
+    // Adjacency list representation
+    vector<vector<int>> adj;
+
+public:
+    /**
+     * Constructor to initialize the graph with V vertices.
+     * 
+     * @param vertices The number of vertices in the graph.
+     */
+    Graph(int vertices) : V(vertices) {
+        // Initialize adjacency lists
+        adj.resize(vertices);
+    }
+
+    /**
+     * Adds an edge from src to dest (undirected graph).
+     * 
+     * @param src The source vertex.
+     * @param dest The destination vertex.
+     */
+    void addEdge(int src, int dest) {
+        adj[src].push_back(dest);
+        adj[dest].push_back(src); 
+    }
+
+    /**
+     * Performs a Depth-First Search from a given start vertex using an iterative approach.
+     * 
+     * @param start The starting vertex for the DFS.
+     */
+    void DFS(int start) {
+        vector<bool> visited(V, false);
+        stack<int> stackObj;
+
+        // Push the start vertex
+        stackObj.push(start);
+
+        cout << ""DFS starting from vertex "" << start << "": "";
+
+        while (!stackObj.empty()) {
+            int vertex = stackObj.top();
+            stackObj.pop();
+
+            // If not visited, mark visited and process
+            if (!visited[vertex]) {
+                cout << vertex << "" "";
+                visited[vertex] = true;
+
+                // Push all adjacent vertices that are not visited
+                for (auto it = adj[vertex].rbegin(); it != adj[vertex].rend(); ++it) {
+                    if (!visited[*it]) {
+                        stackObj.push(*it);
+                    }
+                }
+            }
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    // Create a graph with 4 vertices (0,1,2,3)
+    Graph g(4);
+    // Add edges
+    g.addEdge(0, 1);
+    g.addEdge(0, 2);
+    g.addEdge(1, 3);
+    g.addEdge(2, 3);
+
+    // Perform DFS starting from vertex 0
+    g.DFS(0);
+
+    return 0;
+}
+",chatgpt
+Kotlin,"/*
+File: KtorServer.kt
+This Kotlin program uses the Ktor framework to start a simple HTTP server.
+It defines two endpoints:
+1. GET / -> returns ""Hello from Ktor!""
+2. GET /users -> returns a static JSON list of users
+
+Usage:
+    gradle run (if using a Gradle setup)
+    or compile and run with a manual classpath that includes Ktor dependencies.
+
+Example Output:
+    Server is running on http://localhost:8080
+*/
+
+import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.routing.*
+
+fun main() {
+    embeddedServer(Netty, port = 8080) {
+        routing {
+            get(""/"") {
+                call.respondText(""Hello from Ktor!"", ContentType.Text.Plain)
+            }
+
+            get(""/users"") {
+                val users = listOf(
+                    mapOf(""id"" to 1, ""name"" to ""Alice""),
+                    mapOf(""id"" to 2, ""name"" to ""Bob"")
+                )
+                call.respond(users)
+            }
+        }
+    }.start(wait = true)
+
+    println(""Server is running on http://localhost:8080"")
+}
+",chatgpt
+Java,"/*
+File: CrudOperations.java
+This class demonstrates basic CRUD (Create, Read, Update, Delete) operations using JDBC with SQLite.
+Usage:
+    javac CrudOperations.java
+    java CrudOperations
+Dependencies:
+    SQLite JDBC driver (sqlite-jdbc-<version>.jar)
+Example Output:
+    Database created or opened successfully.
+    Table created successfully.
+    Record inserted: (John Doe, 29)
+    Record inserted: (Jane Smith, 34)
+    Reading records from the database:
+    ID: 1, Name: John Doe, Age: 29
+    ID: 2, Name: Jane Smith, Age: 34
+    Record updated: ID=1 now has age=30
+    Record with ID=2 deleted.
+*/
+
+import java.sql.*;
+
+public class CrudOperations {
+
+    // SQLite connection URL
+    private static final String URL = ""jdbc:sqlite:sample.db"";
+
+    public static void main(String[] args) {
+        try {
+            // 1. Establish connection
+            Connection conn = DriverManager.getConnection(URL);
+            System.out.println(""Database created or opened successfully."");
+
+            // 2. Create table if it does not exist
+            createTable(conn);
+
+            // 3. Insert sample records
+            insertRecord(conn, ""John Doe"", 29);
+            insertRecord(conn, ""Jane Smith"", 34);
+
+            // 4. Read and print records
+            readRecords(conn);
+
+            // 5. Update a record
+            updateRecord(conn, 1, 30);
+
+            // 6. Delete a record
+            deleteRecord(conn, 2);
+
+            conn.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void createTable(Connection conn) throws SQLException {
+        // The SQL statement to create a table if it doesn't already exist
+        String sql = ""CREATE TABLE IF NOT EXISTS persons (""
+                   + ""id INTEGER PRIMARY KEY AUTOINCREMENT, ""
+                   + ""name TEXT NOT NULL, ""
+                   + ""age INTEGER NOT NULL""
+                   + "")"";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            System.out.println(""Table created successfully."");
+        }
+    }
+
+    private static void insertRecord(Connection conn, String name, int age) throws SQLException {
+        String sql = ""INSERT INTO persons (name, age) VALUES (?, ?)"";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setInt(2, age);
+            pstmt.executeUpdate();
+            System.out.println(""Record inserted: ("" + name + "", "" + age + "")"");
+        }
+    }
+
+    private static void readRecords(Connection conn) throws SQLException {
+        String sql = ""SELECT id, name, age FROM persons"";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            System.out.println(""Reading records from the database:"");
+            while (rs.next()) {
+                System.out.println(""ID: "" + rs.getInt(""id"") 
+                    + "", Name: "" + rs.getString(""name"")
+                    + "", Age: "" + rs.getInt(""age""));
+            }
+        }
+    }
+
+    private static void updateRecord(Connection conn, int id, int newAge) throws SQLException {
+        String sql = ""UPDATE persons SET age=? WHERE id=?"";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, newAge);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+            System.out.println(""Record updated: ID="" + id + "" now has age="" + newAge);
+        }
+    }
+
+    private static void deleteRecord(Connection conn, int id) throws SQLException {
+        String sql = ""DELETE FROM persons WHERE id=?"";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+            System.out.println(""Record with ID="" + id + "" deleted."");
+        }
+    }
+}
+",chatgpt
+Go,"// File: prime_check.go
+// This Go program determines if a given integer is prime.
+// Usage:
+//   go run prime_check.go
+// Example Output:
+//   Enter a number: 13
+//   13 is prime.
+
+package main
+
+import (
+    ""fmt""
+    ""math""
+)
+
+// isPrime checks if a given integer n is prime.
+func isPrime(n int) bool {
+    if n < 2 {
+        return false
+    }
+    // Only check divisibility up to the square root of n
+    limit := int(math.Sqrt(float64(n)))
+    for i := 2; i <= limit; i++ {
+        if n%i == 0 {
+            return false
+        }
+    }
+    return true
+}
+
+func main() {
+    var num int
+    fmt.Print(""Enter a number: "")
+    fmt.Scan(&num)
+
+    if isPrime(num) {
+        fmt.Printf(""%d is prime.\n"", num)
+    } else {
+        fmt.Printf(""%d is not prime.\n"", num)
+    }
+}
+",chatgpt
+Rust,"// File: todo_cli.rs
+// This Rust program implements a very basic command-line Todo application.
+// It allows adding tasks, listing them, and marking tasks as done.
+//
+// Usage:
+//   cargo run -- [command] [arguments]
+// Example:
+//   cargo run -- add ""Buy groceries""
+//   cargo run -- list
+//
+// Example Output:
+//   Added task 1: ""Buy groceries""
+//   1: [ ] Buy groceries
+//   Completed task 1: ""Buy groceries""
+//
+use std::env;
+use std::fs::{OpenOptions, read_to_string};
+use std::io::{Write, Error};
+
+#[derive(Debug)]
+struct Task {
+    id: usize,
+    title: String,
+    done: bool,
+}
+
+fn main() -> Result<(), Error> {
+    // Retrieve arguments
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!(""Usage: todo_cli <command> [arguments]"");
+        return Ok(());
+    }
+    
+    let command = &args[1];
+    let todo_file = ""todo.txt"";
+
+    match command.as_str() {
+        ""add"" => {
+            if args.len() < 3 {
+                eprintln!(""Usage: todo_cli add <task_description>"");
+                return Ok(());
+            }
+            let task_description = &args[2..].join("" "");
+            add_task(todo_file, task_description)?;
+        }
+        ""list"" => {
+            list_tasks(todo_file)?;
+        }
+        ""done"" => {
+            if args.len() < 3 {
+                eprintln!(""Usage: todo_cli done <task_id>"");
+                return Ok(());
+            }
+            let task_id: usize = args[2].parse().expect(""Please provide a valid task id."");
+            mark_done(todo_file, task_id)?;
+        }
+        _ => {
+            eprintln!(""Unknown command. Available commands: add, list, done"");
+        }
+    }
+    Ok(())
+}
+
+/// Add a new task to the file.
+fn add_task(file_path: &str, description: &str) -> Result<(), Error> {
+    let mut tasks = load_tasks(file_path)?;
+    let new_id = tasks.len() + 1;
+    tasks.push(Task {
+        id: new_id,
+        title: description.to_string(),
+        done: false,
+    });
+    save_tasks(file_path, &tasks)?;
+    println!(""Added task {}: \""{}\"""", new_id, description);
+    Ok(())
+}
+
+/// List all tasks from the file.
+fn list_tasks(file_path: &str) -> Result<(), Error> {
+    let tasks = load_tasks(file_path)?;
+    for task in tasks {
+        let status = if task.done { ""[x]"" } else { ""[ ]"" };
+        println!(""{}: {} {}"", task.id, status, task.title);
+    }
+    Ok(())
+}
+
+/// Mark a task as done by its ID.
+fn mark_done(file_path: &str, task_id: usize) -> Result<(), Error> {
+    let mut tasks = load_tasks(file_path)?;
+    for task in tasks.iter_mut() {
+        if task.id == task_id {
+            task.done = true;
+            println!(""Completed task {}: \""{}\"""", task.id, task.title);
+        }
+    }
+    save_tasks(file_path, &tasks)?;
+    Ok(())
+}
+
+/// Load tasks from file and parse them into a vector of Task structs.
+fn load_tasks(file_path: &str) -> Result<Vec<Task>, Error> {
+    let contents = match read_to_string(file_path) {
+        Ok(c) => c,
+        Err(_) => String::new(),
+    };
+    let mut tasks = Vec::new();
+    for line in contents.lines() {
+        // Expected format: id|title|done
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() == 3 {
+            let id: usize = parts[0].parse().unwrap_or(0);
+            let title = parts[1].to_string();
+            let done: bool = parts[2].parse().unwrap_or(false);
+            tasks.push(Task { id, title, done });
+        }
+    }
+    Ok(tasks)
+}
+
+/// Save tasks back to the file in a simple text format.
+fn save_tasks(file_path: &str, tasks: &[Task]) -> Result<(), Error> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(file_path)?;
+    
+    for task in tasks {
+        let line = format!(""{}|{}|{}\n"", task.id, task.title, task.done);
+        file.write_all(line.as_bytes())?;
+    }
+    Ok(())
+}
+",chatgpt
+JavaScript,"/*
+File: reverseString.js
+This script defines a function to reverse a given string.
+No external libraries are needed.
+Usage:
+    node reverseString.js
+Example Output:
+    Original: Hello World
+    Reversed: dlroW olleH
+*/
+
+/**
+ * Reverses the characters in a given string.
+ * 
+ * @param {string} str - The string to be reversed.
+ * @return {string} - The reversed string.
+ */
+function reverseString(str) {
+  // Split the string into an array of characters,
+  // reverse the array, then join the characters back into a string.
+  return str.split('').reverse().join('');
+}
+
+// Example usage
+const original = ""Hello World"";
+const reversed = reverseString(original);
+
+// Print results
+console.log(""Original:"", original);
+console.log(""Reversed:"", reversed);
+",chatgpt
+Swift,"//
+// File: Fibonacci.swift
+// This Swift program calculates the first N Fibonacci numbers iteratively.
+// Usage:
+//   swift Fibonacci.swift
+// Example Output:
+//   Enter the number of Fibonacci terms: 5
+//   Fibonacci series: 0 1 1 2 3
+//
+
+import Foundation
+
+func fibonacci(n: Int) -> [Int] {
+    // Return an empty list if n <= 0
+    if n <= 0 {
+        return []
+    }
+    
+    // If n is 1, just return [0]
+    if n == 1 {
+        return [0]
+    }
+    
+    var series = [0, 1]
+    
+    // Build the series iteratively
+    for _ in 2..<n {
+        let nextValue = series[series.count - 1] + series[series.count - 2]
+        series.append(nextValue)
+    }
+    
+    return series
+}
+
+print(""Enter the number of Fibonacci terms: "", terminator: """")
+if let input = readLine(), let num = Int(input) {
+    let result = fibonacci(n: num)
+    print(""Fibonacci series:"", result.map { String($0) }.joined(separator: "" ""))
+} else {
+    print(""Invalid input."")
+}
+",chatgpt
+Ruby,"# File: bubble_sort.rb
+# This script implements the Bubble Sort algorithm to sort an array of integers.
+# Usage:
+#   ruby bubble_sort.rb
+# Example Output:
+#   Original array: [64, 34, 25, 12, 22, 11, 90]
+#   Sorted array:   [11, 12, 22, 25, 34, 64, 90]
+
+def bubble_sort(array)
+  n = array.length
+  loop do
+    swapped = false
+    (n-1).times do |i|
+      if array[i] > array[i+1]
+        # Swap elements
+        array[i], array[i+1] = array[i+1], array[i]
+        swapped = true
+      end
+    end
+    break unless swapped
+  end
+  array
+end
+
+# Example usage
+data = [64, 34, 25, 12, 22, 11, 90]
+puts ""Original array: #{data}""
+sorted_data = bubble_sort(data)
+puts ""Sorted array:   #{sorted_data}""
+",chatgpt
+Rust,"/*
+=====================================================
+Anchor Counter Program (lib.rs)
+=====================================================
+Purpose:
+    Demonstrates a simple Anchor program that:
+    1. Stores a counter in a program-owned account.
+    2. Provides an instruction to increment this counter.
+Crates/Dependencies:
+    - anchor-lang for building on Solana with Anchor.
+Usage:
+    1. `anchor build` to build the program.
+    2. `anchor deploy` to deploy it to the Solana cluster.
+    3. `anchor test` to run tests (if you have a test file).
+*/
+
+use anchor_lang::prelude::*;
+
+/// The main entry point to our Anchor program.
+/// The `declare_id!` macro sets the program ID.
+/// This must match the program ID that is deployed on Solana.
+declare_id!(""8HzSo6A4rvQo61zMqwEK3H7QNxVD6sbRQEQ9N2hLQcNZ""); // Example ID, change to your program ID.
+
+#[program]
+pub mod counter {
+    use super::*;
+
+    /// The `initialize` function creates a new `CounterAccount` and sets its initial state.
+    /// This is typically called once per user or entity that wants to store a counter.
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let counter_account = &mut ctx.accounts.counter_account;
+        counter_account.count = 0;
+        Ok(())
+    }
+
+    /// The `increment` function updates the `CounterAccount` by incrementing the `count`.
+    /// Anyone holding the account's address and passing the correct `Context` can invoke this.
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+        let counter_account = &mut ctx.accounts.counter_account;
+        counter_account.count = counter_account
+            .count
+            .checked_add(1)
+            .ok_or_else(|| error!(CounterError::Overflow))?;
+        Ok(())
+    }
+}
+
+/// Context for the `initialize` instruction.  
+/// We define which accounts are involved and how they should be accessed.
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    /// The account that will store our counter data.
+    /// - `init` indicates this account is being created.
+    /// - `payer` indicates who pays for the account creation.
+    /// - `space` is the size (in bytes) needed for storing our data.
+    #[account(init, payer = user, space = 8 + 8)]
+    pub counter_account: Account<'info, CounterAccount>,
+
+    /// The user paying for the account creation. Must be a signer.
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    /// System program is required for account creation.
+    pub system_program: Program<'info, System>,
+}
+
+/// Context for the `increment` instruction.
+#[derive(Accounts)]
+pub struct Increment<'info> {
+    /// Mutably borrow our counter account to update its data.
+    #[account(mut)]
+    pub counter_account: Account<'info, CounterAccount>,
+}
+
+/// Our account data structure.  
+/// We store a single `i64` counter. The `#[account]` attribute tells Anchor
+/// that this struct represents a Solana account's data layout.
+#[account]
+pub struct CounterAccount {
+    pub count: i64,
+}
+
+/// A custom error enumeration for demonstration purposes.
+#[error_code]
+pub enum CounterError {
+    #[msg(""Counter has overflowed"")]
+    Overflow,
+}
+/*
+===============================================================
+Anchor Program: Token Mint and Associated Token Account
+===============================================================
+Purpose:
+    Demonstrates how to create and initialize a token mint
+    and an associated token account (ATA) using Anchor and SPL Token.
+Crates/Dependencies:
+    - anchor-lang, anchor-spl
+Usage:
+    1. Configure your Anchor.toml with correct program ID.
+    2. 'anchor build' and 'anchor deploy'.
+    3. Write or run tests to create a token mint and an ATA.
+*/
+
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, InitializeMint, Mint, Token, TokenAccount};
+use anchor_spl::associated_token::AssociatedToken;
+
+// Example program ID
+declare_id!(""3kZ2RkZnKDYNxGwxnEkTSQnQ1zFQgkk73xLtESTgCxmf"");
+
+#[program]
+pub mod anchor_token_example {
+    use super::*;
+
+    /// Create a token mint with the specified decimals, then create an associated token account for
+    /// the specified `authority`.
+    pub fn create_mint_and_ata(
+        ctx: Context<CreateMintAndATA>,
+        decimals: u8,
+    ) -> Result<()> {
+        // Initialize the token mint
+        token::initialize_mint(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                InitializeMint {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                },
+            ),
+            decimals,
+            &ctx.accounts.authority.key(),
+            Some(&ctx.accounts.authority.key()),
+        )?;
+
+        // The associated token account is automatically created by Anchor
+        // thanks to `associated_token::create` in the context.
+        // No extra instruction needed if we simply define it in the context.
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateMintAndATA<'info> {
+    /// The payer for creating accounts, must be a signer.
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    /// The new token mint account. This will be created and owned by the Token Program.
+    #[account(
+        init,
+        payer = payer,
+        mint::decimals = 0,
+        mint::authority = authority,
+        mint::freeze_authority = authority
+    )]
+    pub mint: Account<'info, Mint>,
+
+    /// The authority that will own the new mint and associated token account.
+    /// Typically the user or a specific governance account.
+    pub authority: SystemAccount<'info>,
+
+    /// Associated token account (ATA) for the minted tokens.
+    /// Anchor will automatically create it if it doesn't exist.
+    #[account(
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = mint,
+        associated_token::authority = authority
+    )]
+    pub associated_token_account: Account<'info, TokenAccount>,
+
+    /// The system program is required for creating accounts on Solana.
+    pub system_program: Program<'info, System>,
+    
+    /// The token program is required for mint/ATA creation instructions.
+    pub token_program: Program<'info, Token>,
+
+    /// The associated token program is used to derive and create the associated token account.
+    pub associated_token_program: Program<'info, AssociatedToken>,
+
+    /// Rent sysvar for determining rent-exempt status.
+    pub rent: Sysvar<'info, Rent>,
+}
+/*
+=================================================
+Direct Solana Transfer (Off-Chain)
+=================================================
+Purpose:
+    Demonstrate how to use Solana's Rust crates to:
+    1. Create a local keypair (or read from file).
+    2. Connect to a Solana cluster (devnet or localnet).
+    3. Transfer SOL from one account to another.
+Crates/Dependencies:
+    solana-sdk, solana-client, solana-keygen, solana-program
+Usage:
+    1. Update `Cargo.toml` accordingly:
+       [dependencies]
+       solana-sdk = ""1.14.11""
+       solana-client = ""1.14.11""
+    2. `cargo run`
+*/
+
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    system_instruction,
+    transaction::Transaction,
+    pubkey::Pubkey,
+};
+
+fn main() {
+    // Connect to devnet for this example.
+    let rpc_url = ""https://api.devnet.solana.com"";
+    let client = RpcClient::new(rpc_url.to_string());
+
+    // Generate a new ephemeral keypair (for demonstration).
+    // In practice, you might load from a file or a wallet manager.
+    let from_keypair = Keypair::new();
+    let from_pubkey = from_keypair.pubkey();
+
+    // A test recipient address. Replace with actual Pubkey for real usage.
+    let to_pubkey = Pubkey::new_unique();
+
+    // Airdrop some SOL to the sender on devnet so we can make a transfer.
+    println!(""Requesting airdrop..."");
+    let airdrop_sig = client.request_airdrop(&from_pubkey, 2_000_000_000).unwrap();
+    client
+        .confirm_transaction(&airdrop_sig)
+        .expect(""Failed to confirm airdrop"");
+
+    // Build a transaction that transfers 0.5 SOL.
+    let tx_amount = 500_000_000; // in lamports (1 SOL = 1e9 lamports)
+    let transfer_ix = system_instruction::transfer(&from_pubkey, &to_pubkey, tx_amount);
+
+    // A Solana transaction requires a recent blockhash and instructions.
+    let latest_hash = client.get_latest_blockhash().unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&from_pubkey),
+        &[&from_keypair],
+        latest_hash,
+    );
+
+    // Send and confirm the transaction.
+    let signature = client
+        .send_and_confirm_transaction(&tx)
+        .expect(""Failed to send transaction"");
+    
+    println!(""Transfer complete! Tx signature: {}"", signature);
+    println!(""{} lamports (0.5 SOL) sent to {}"", tx_amount, to_pubkey);
+}
+/*
+==========================================================
+1) Non-Anchor System Program Transfer (Off-Chain Client)
+==========================================================
+Purpose:
+  - Connect to Solana devnet (or another cluster).
+  - Create a keypair or load from file.
+  - Request an airdrop (devnet) to fund the sender.
+  - Transfer SOL (lamports) to another public key.
+*/
+
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    system_instruction,
+    transaction::Transaction,
+    pubkey::Pubkey,
+};
+
+fn main() {
+    // Connect to devnet (replace with localnet or mainnet as needed).
+    let rpc_url = ""https://api.devnet.solana.com"";
+    let client = RpcClient::new(rpc_url.to_string());
+
+    // Generate a new ephemeral keypair for demonstration.
+    // In production, load a keypair from file or a wallet manager.
+    let from_keypair = Keypair::new();
+    let from_pubkey = from_keypair.pubkey();
+    println!(""Sender pubkey: {}"", from_pubkey);
+
+    // A test recipient address. Use a real public key in production.
+    let to_pubkey = Pubkey::new_unique();
+    println!(""Recipient pubkey: {}"", to_pubkey);
+
+    // Airdrop 1 SOL to the sender for devnet usage (1 SOL = 1e9 lamports).
+    println!(""Requesting airdrop of 1 SOL..."");
+    let airdrop_sig = client.request_airdrop(&from_pubkey, 1_000_000_000).unwrap();
+    client
+        .confirm_transaction(&airdrop_sig)
+        .expect(""Failed to confirm airdrop"");
+
+    // Prepare a system transfer instruction for 0.1 SOL (100 million lamports).
+    let lamports_to_send = 100_000_000; // 0.1 SOL
+    let transfer_ix = system_instruction::transfer(&from_pubkey, &to_pubkey, lamports_to_send);
+
+    // Get a recent blockhash required for transaction creation.
+    let latest_blockhash = client.get_latest_blockhash().unwrap();
+
+    // Create and sign the transaction.
+    let tx = Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&from_pubkey),
+        &[&from_keypair],
+        latest_blockhash,
+    );
+
+    // Send and confirm the transaction on-chain.
+    let signature = client
+        .send_and_confirm_transaction(&tx)
+        .expect(""Failed to send transaction"");
+    
+    println!(""Transfer success! Tx signature: {}"", signature);
+    println!(
+        ""Sent {} lamports (0.1 SOL) from {} to {}"",
+        lamports_to_send, from_pubkey, to_pubkey
+    );
+}
+/*
+===========================================
+2) Anchor ""Hello World"" Program
+===========================================
+Purpose:
+  - Illustrate a minimal Anchor program that just logs
+    a greeting message when the instruction is invoked.
+*/
+
+use anchor_lang::prelude::*;
+
+// Replace with your actual program ID.
+declare_id!(""Fg6PaFpoGXkYsidMpWTK4W6W7YfZBNuEhu5uuvvFLJBk"");
+
+#[program]
+pub mod hello_world {
+    use super::*;
+
+    pub fn say_hello(_ctx: Context<SayHello>) -> Result<()> {
+        msg!(""Hello, Solana! This is an Anchor program log."");
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct SayHello {}
+/*
+======================================================
+3) Anchor PDA Example
+======================================================
+Purpose:
+  - Demonstrate how to derive a program-owned account
+    using seeds and store data in it.
+  - Provide an 'initialize' instruction to create the PDA,
+    and an 'update' instruction to modify stored data.
+*/
+
+use anchor_lang::prelude::*;
+
+declare_id!(""BpfProgram1111111111111111111111111111111111""); // Placeholder, replace with real ID
+
+#[program]
+pub mod pda_example {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>, seed_string: String) -> Result<()> {
+        let base_account = &mut ctx.accounts.base_account;
+        base_account.data = seed_string;
+        Ok(())
+    }
+
+    pub fn update(ctx: Context<Update>, new_data: String) -> Result<()> {
+        let base_account = &mut ctx.accounts.base_account;
+        base_account.data = new_data;
+        Ok(())
+    }
+}
+
+/// Instruction accounts for ""initialize"".
+#[derive(Accounts)]
+#[instruction(seed_string: String)]
+pub struct Initialize<'info> {
+    #[account(
+        init,
+        payer = user,
+        // We derive the PDA using seeds = [b""base_seed"", user.key().as_ref(), seed_string.as_bytes()]
+        // bump is auto-populated by anchor in the context
+        seeds = [b""base_seed"", user.key().as_ref(), seed_string.as_bytes()],
+        bump,
+        space = 8 + 64 // 8 bytes account discriminator + 64 for data
+    )]
+    pub base_account: Account<'info, BaseAccount>,
+
+    // Payer for the account creation
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    // System Program
+    pub system_program: Program<'info, System>,
+}
+
+/// Instruction accounts for ""update"".
+#[derive(Accounts)]
+pub struct Update<'info> {
+    // We must reference the same seeds to ensure we get the same PDA
+    #[account(
+        mut,
+        seeds = [b""base_seed"", authority.key().as_ref(), base_account.data.as_bytes()],
+        bump
+    )]
+    pub base_account: Account<'info, BaseAccount>,
+
+    // The authority that originally created the account might need to sign
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+/// Our custom account that holds some string data.
+#[account]
+pub struct BaseAccount {
+    pub data: String,
+}
+/*
+========================================================
+4) Anchor CPI to System Program
+========================================================
+Purpose:
+  - Illustrate how to create an account via CPI to the System Program.
+  - The ""create_account"" instruction will do so on behalf of the caller,
+    but from inside our Anchor program.
+*/
+
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
+use anchor_lang::solana_program::system_instruction;
+
+declare_id!(""CpiSystem1111111111111111111111111111111111""); // Placeholder
+
+#[program]
+pub mod cpi_system_example {
+    use super::*;
+
+    pub fn create_account_cpi(ctx: Context<CreateAccountCpi>) -> Result<()> {
+        let bump = *ctx.bumps.get(""my_account"").unwrap();
+
+        // Let's define the rent-exempt minimum for the new account
+        let lamports_required = Rent::get()?.minimum_balance(100);
+
+        // Build the system_program instruction
+        let cpi_ix = system_instruction::create_account(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.my_account.key(),
+            lamports_required,
+            100, // space for data, just for demonstration
+            &ctx.program_id,
+        );
+
+        // Build CPI context
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::CreateAccount {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.my_account.to_account_info(),
+            },
+        );
+
+        // Execute the CPI
+        system_program::create_account(cpi_ctx, lamports_required, 100, &ctx.program_id)?;
+
+        // Alternatively, we could manually call invoke_signed. But Anchor provides these CPI helpers.
+        msg!(""Account created via CPI."");
+
+        // Bump usage example (not strictly needed here).
+        msg!(""Bump: {}"", bump);
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateAccountCpi<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(
+        mut,
+        // We do NOT init here; we do it manually via CPI
+        seeds = [b""test"", user.key().as_ref()],
+        bump
+    )]
+    pub my_account: UninitializedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+/*
+========================================================
+5) Anchor SPL Token Example
+========================================================
+Purpose:
+  - Demonstrate creation of a token mint via Anchor,
+    and how to transfer tokens to a recipient's ATA.
+  - Uses anchor-spl for convenience methods.
+*/
+
+use anchor_lang::prelude::*;
+use anchor_spl::token::{
+    self, Mint, Token, TokenAccount, InitializeMint, MintTo, Transfer,
+};
+use anchor_spl::associated_token::AssociatedToken;
+
+declare_id!(""TokenExample111111111111111111111111111111111""); // Placeholder
+
+#[program]
+pub mod anchor_spl_example {
+    use super::*;
+
+    /// Create a new mint and mint some initial supply to the authority's associated token account.
+    pub fn create_mint_and_mint_to(ctx: Context<CreateMintAndMintTo>, amount: u64) -> Result<()> {
+        // Initialize the token mint
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = InitializeMint {
+            mint: ctx.accounts.mint.to_account_info(),
+            rent: ctx.accounts.rent.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::initialize_mint(cpi_ctx, 6, &ctx.accounts.authority.key(), Some(&ctx.accounts.authority.key()))?;
+
+        // Mint tokens to the authority's ATA
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.authority_ata.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+        token::mint_to(cpi_ctx, amount)?;
+
+        msg!(""Created mint with 6 decimals, minted {} tokens to authority ATA."", amount);
+        Ok(())
+    }
+
+    /// Transfer tokens from the signer to a recipient's ATA.
+    pub fn transfer_tokens(ctx: Context<TransferTokens>, amount: u64) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.from_ata.to_account_info(),
+            to: ctx.accounts.to_ata.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
+        msg!(""Transferred {} tokens."", amount);
+        Ok(())
+    }
+}
+
+/// Accounts for creating a mint and minting tokens to an authority's ATA.
+#[derive(Accounts)]
+pub struct CreateMintAndMintTo<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// The mint account to be created.
+    #[account(
+        init,
+        payer = authority,
+        mint::decimals = 0, // We'll override in code, but let's keep it consistent
+        mint::authority = authority,
+        mint::freeze_authority = authority
+    )]
+    pub mint: Account<'info, Mint>,
+
+    /// The associated token account for the authority's minted tokens.
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = mint,
+        associated_token::authority = authority,
+    )]
+    pub authority_ata: Account<'info, TokenAccount>,
+
+    #[account(address = spl_token::id())]
+    pub token_program: Program<'info, Token>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+/// Accounts for transferring tokens from 'authority' to 'to_ata'.
+#[derive(Accounts)]
+pub struct TransferTokens<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        mut,
+        // Ensure the 'from_ata' is owned by 'authority'
+        constraint = from_ata.owner == authority.key()
+    )]
+    pub from_ata: Account<'info, TokenAccount>,
+
+    /// The associated token account of the recipient
+    #[account(mut)]
+    pub to_ata: Account<'info, TokenAccount>,
+
+    #[account(address = spl_token::id())]
+    pub token_program: Program<'info, Token>,
+}
+/*
+========================================================
+6) Anchor NFT Metadata Example (Conceptual)
+========================================================
+Purpose:
+  - Mint an NFT (1 token, 0 decimals).
+  - Call Metaplex's token metadata program via CPI
+    to create metadata for this NFT.
+Note:
+  - This is a conceptual snippet. The real token metadata
+    program requires many additional checks & parameters.
+*/
+
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, TokenAccount, InitializeMint, MintTo};
+use anchor_spl::associated_token::AssociatedToken;
+
+// Typically: use metaplex-token-metadata crates for real usage
+// For demonstration, we assume a hypothetical CPI call to ""create_metadata_accounts"".
+
+declare_id!(""NFTMeta1111111111111111111111111111111111""); // Placeholder
+
+#[program]
+pub mod nft_metadata_example {
+    use super::*;
+
+    pub fn mint_nft_with_metadata(
+        ctx: Context<MintNftWithMetadata>,
+        uri: String,
+        title: String,
+        symbol: String,
+    ) -> Result<()> {
+        // 1) Initialize mint as an NFT (0 decimals, supply = 1 minted to the owner).
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = InitializeMint {
+            mint: ctx.accounts.mint.to_account_info(),
+            rent: ctx.accounts.rent.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::initialize_mint(cpi_ctx, 0, &ctx.accounts.authority.key(), Some(&ctx.accounts.authority.key()))?;
+
+        // 2) Mint 1 token to the owner's ATA
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.owner_ata.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+        token::mint_to(cpi_ctx, 1)?;
+
+        // 3) CPI to the token metadata program to create metadata
+        // (In real usage, you'd need the correct instruction data & seeds).
+        msg!(""CPI to Metaplex Token Metadata: create_metadata_accounts"");
+        // For demonstration, this might be something like:
+        // invoke_signed(
+        //   &create_metadata_accounts_ix(...),
+        //   &[
+        //       ctx.accounts.metadata_account.to_account_info(),
+        //       ...
+        //   ],
+        //   &[...]
+        // )?;
+
+        msg!(
+            ""NFT minted with URI: {}, Title: {}, Symbol: {}"",
+            uri,
+            title,
+            symbol
+        );
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct MintNftWithMetadata<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        init,
+        payer = authority,
+        mint::decimals = 0,
+        mint::authority = authority,
+        mint::freeze_authority = authority
+    )]
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = mint,
+        associated_token::authority = authority,
+    )]
+    pub owner_ata: Account<'info, TokenAccount>,
+
+    // Typically you'd create a metadata PDA via the Metaplex program
+    // We'll just show it as a generic uninitialized account for demonstration.
+    #[account(mut)]
+    pub metadata_account: UninitializedAccount<'info>,
+
+    #[account(address = spl_token::id())]
+    pub token_program: Program<'info, Token>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+
+    // The real Metaplex token metadata program
+    // pub token_metadata_program: Program<'info, TokenMetadataProgram>,
+}
+/*
+=============================================================
+7) Anchor CPI: One Anchor Program calling Another
+=============================================================
+Purpose:
+  - ""Program A"" calls ""Program B"" via a CPI to the 'ping' instruction.
+  - Both are Anchor-based. ""Program B"" must allow external calls (public).
+*/
+
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::Instruction;
+use anchor_lang::solana_program::program::invoke_signed;
+
+// Program B's ID
+pub const CALLEE_PROGRAM_ID: &str = ""Callee1111111111111111111111111111111111"";
+
+declare_id!(""Caller11111111111111111111111111111111111111"");
+
+#[program]
+pub mod caller_program {
+    use super::*;
+
+    pub fn cpi_ping_program_b(ctx: Context<CpiPing>) -> Result<()> {
+        // Construct the ""ping"" instruction data. 
+        // Anchor instructions typically have a discriminator. For demonstration, let's assume we know the IDL or we simply do:
+        // let ix_data = <the Bincode or Anchor-serialized ""ping"" data>;
+        // In real usage, you can get it from the IDL or build manually.
+
+        let ix_data = vec![123, 234]; // Placeholder, not real. Replace with correct Anchor instruction data.
+
+        let accounts = vec![
+            // Program B's ""ping"" might require some accounts. 
+            // For demonstration, let's assume it only needs the 'signer' as a read account.
+            AccountMeta::new_readonly(ctx.accounts.user.key(), true),
+        ];
+
+        let ix = Instruction {
+            program_id: Pubkey::from_str(CALLEE_PROGRAM_ID).unwrap(),
+            accounts,
+            data: ix_data,
+        };
+
+        // If Program B expects a sign from our caller's PDA, we'd do `invoke_signed`.
+        // If no sign needed, `invoke` is enough. Here we show `invoke`.
+        let account_infos = [
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.callee_program.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ];
+
+        invoke_signed(
+            &ix,
+            &account_infos,
+            &[], // sign seeds if needed
+        )?;
+
+        msg!(""Successfully invoked Program B's ping instruction."");
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CpiPing<'info> {
+    pub user: Signer<'info>,
+
+    // Program B, the callee
+    #[account(address = Pubkey::from_str(CALLEE_PROGRAM_ID).unwrap())]
+    pub callee_program: Program<'info, System>, // or a custom type
+
+    pub system_program: Program<'info, System>,
+}
+/*
+========================================================
+8) Off-Chain Ephemeral Key Example (Token Mint)
+========================================================
+Purpose:
+  - Create an ephemeral keypair to sign an SPL token
+    mint transaction, then discard it.
+*/
+
+use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    pubkey::Pubkey,
+};
+use anchor_spl::token::{mint_to, MintTo, Token};
+use anchor_lang::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Connect to devnet
+    let rpc_url = ""https://api.devnet.solana.com"";
+    let client = RpcClient::new(rpc_url.to_string());
+
+    // 1) Create ephemeral keypair
+    let ephemeral_keypair = Keypair::new();
+    println!(""Ephemeral public key: {}"", ephemeral_keypair.pubkey());
+
+    // 2) Suppose we have an existing mint & user ATA
+    let mint_pubkey = Pubkey::new_unique();
+    let user_ata = Pubkey::new_unique();
+
+    // 3) Build a MintTo instruction (using anchor_spl style).
+    // In practice, you'd need to gather all required account infos.
+    let mint_to_ix = anchor_spl::token::instruction::mint_to(
+        &spl_token::id(),
+        &mint_pubkey,
+        &user_ata,
+        &ephemeral_keypair.pubkey(), // ephemeral as the authority
+        &[],
+        100, // amount to mint
+    )?;
+
+    // 4) Construct transaction
+    let blockhash = client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[mint_to_ix],
+        Some(&ephemeral_keypair.pubkey()),
+        &[&ephemeral_keypair],
+        blockhash,
+    );
+
+    // 5) Send and confirm
+    let signature = client.send_and_confirm_transaction(&tx).await;
+    match signature {
+        Ok(sig) => println!(""Mint successful. Tx signature: {}"", sig),
+        Err(e) => println!(""Mint failed: {}"", e),
+    }
+
+    // 6) Discard ephemeral key. It's simply dropped from scope here.
+
+    Ok(())
+}
+/*
+========================================================
+9) Anchor Test Example
+========================================================
+Purpose:
+  - Demonstrate how to write a test in the `tests/` folder
+    that calls our Anchor program instructions.
+*/
+
+use anchor_lang::prelude::*;
+use anchor_lang::AccountDeserialize;
+use anchor_lang::ToAccountInfos;
+use anchor_spl::token::{Token, Mint};
+use solana_program_test::*;
+use solana_sdk::{signer::Signer, transport::TransportError};
+
+use counter::program::Counter; // Example if our program is named 'counter'
+use counter::{self, CounterAccount};
+
+#[tokio::test]
+async fn test_counter_program() -> Result<(), TransportError> {
+    // 1) Start a local program test environment
+    let mut program_test = ProgramTest::new(
+        ""counter"", // the name from Cargo.toml
+        counter::id(), // the program ID
+        processor!(counter::entry), // the entrypoint
+    );
+
+    // Add any other programs or set up if needed
+    program_test.add_program(""spl_token"", spl_token::id(), None);
+
+    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+
+    // 2) Create a new Keypair for our counter account
+    let counter_account = Keypair::new();
+
+    // 3) Build and send an ""initialize"" instruction
+    let init_tx = counter::initialize(
+        // anchor test uses a client-based builder pattern
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        counter_account.pubkey(),
+    )?;
+    // If your program doesn't have a helper, you'd manually create an Instruction + signers.
+
+    banks_client.process_transaction(init_tx).await?;
+
+    // 4) Build and send an ""increment"" instruction
+    let inc_tx = counter::increment(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        counter_account.pubkey(),
+    )?;
+    banks_client.process_transaction(inc_tx).await?;
+
+    // 5) Fetch the account data from on-chain
+    let account_data = banks_client
+        .get_account(counter_account.pubkey())
+        .await?
+        .expect(""Counter account not found."");
+
+    // 6) Deserialize the data into our CounterAccount type
+    let counter_state = CounterAccount::try_deserialize(&mut &account_data.data[..])?;
+    assert_eq!(counter_state.count, 1);
+
+    println!(""Test success! Counter = {}"", counter_state.count);
+
+    Ok(())
+}
+",chatgpt
+Kotlin,"/*
+File: LargestElement.kt
+This Kotlin program finds the largest integer in a list.
+Usage:
+    kotlinc LargestElement.kt -include-runtime -d LargestElement.jar
+    java -jar LargestElement.jar
+Example Output:
+    The largest element is 99
+*/
+
+fun findLargestElement(numbers: List<Int>): Int {
+    require(numbers.isNotEmpty()) { ""List cannot be empty."" }
+    var maxVal = numbers[0]
+    for (num in numbers) {
+        if (num > maxVal) {
+            maxVal = num
+        }
+    }
+    return maxVal
+}
+
+fun main() {
+    val listOfNumbers = listOf(10, 99, 23, 45)
+    val largest = findLargestElement(listOfNumbers)
+    println(""The largest element is $largest"")
+}
+",chatgpt
+C++,"/*
+File: BubbleSort.cpp
+This program implements the Bubble Sort algorithm to sort an integer array.
+Usage:
+    g++ BubbleSort.cpp -o BubbleSort
+    ./BubbleSort
+Example Output:
+    Original array: 64 34 25 12 22 11 90
+    Sorted array: 11 12 22 25 34 64 90
+*/
+
+#include <iostream>
+#include <vector>
+using namespace std;
+
+/**
+ * Sorts an array of integers using the Bubble Sort algorithm.
+ *
+ * @param arr A reference to a vector of integers to be sorted.
+ */
+void bubbleSort(vector<int>& arr) {
+    int n = arr.size();
+    bool swapped;
+
+    // Repeatedly step through the array
+    for (int i = 0; i < n - 1; i++) {
+        swapped = false;
+        // Compare adjacent elements
+        for (int j = 0; j < n - i - 1; j++) {
+            // If current element is greater, swap
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+                swapped = true;
+            }
+        }
+        // If no swap happened in this pass, the array is already sorted
+        if (!swapped) break;
+    }
+}
+
+int main() {
+    vector<int> data = {64, 34, 25, 12, 22, 11, 90};
+
+    cout << ""Original array: "";
+    for (int num : data) {
+        cout << num << "" "";
+    }
+    cout << endl;
+
+    bubbleSort(data);
+
+    cout << ""Sorted array: "";
+    for (int num : data) {
+        cout << num << "" "";
+    }
+    cout << endl;
+
+    return 0;
+}
+",chatgpt
+Java,"/*
+File: FindMax.java
+This Java class contains a method to find the maximum integer in an array.
+No additional libraries are required (only standard Java).
+Usage:
+    javac FindMax.java
+    java FindMax
+Example Output:
+    The maximum value in the array is: 99
+*/
+
+public class FindMax {
+
+    /**
+     * Finds the maximum value in an integer array.
+     *
+     * @param arr The input array of integers.
+     * @return The maximum integer found in the array.
+     * @throws IllegalArgumentException if the array is null or empty.
+     */
+    public static int findMaxValue(int[] arr) {
+        if (arr == null || arr.length == 0) {
+            throw new IllegalArgumentException(""Array must not be null or empty."");
+        }
+
+        // Initialize max with the first element of the array
+        int max = arr[0];
+
+        // Iterate through the array, updating max if a bigger value is found
+        for (int value : arr) {
+            if (value > max) {
+                max = value;
+            }
+        }
+
+        return max;
+    }
+
+    public static void main(String[] args) {
+        int[] numbers = {10, 99, 23, 87, 12};
+        int maxValue = findMaxValue(numbers);
+        System.out.println(""The maximum value in the array is: "" + maxValue);
+    }
+}
+",chatgpt
+Rust,"/*
+==============================
+Factorial Example (Simple)
+==============================
+Purpose:
+    Demonstrate a basic recursive factorial function in Rust.
+Crates/Dependencies:
+    None (uses only the Rust standard library).
+Instructions to Run:
+    1. Save this code in a file named `factorial.rs`.
+    2. Run with `cargo run`.
+Example Output:
+    5! = 120
+*/
+
+fn main() {
+    // We'll compute the factorial of a few numbers for demonstration.
+    let number = 5;
+    // Calculate factorial using our custom function.
+    let result = factorial(number);
+    // Print the result to the console.
+    println!(""{}! = {}"", number, result);
+}
+
+/// Computes the factorial of a non-negative integer `n`.
+/// The factorial of n (written as n!) is the product of all
+/// positive integers up to n. For instance, 5! = 1 * 2 * 3 * 4 * 5 = 120.
+///
+/// # Arguments
+///
+/// * `n` - A non-negative integer.
+///
+/// # Returns
+///
+/// * The factorial value of `n`.
+fn factorial(n: u32) -> u32 {
+    // If n is 0 or 1, return 1.
+    // This is the base case for the recursion.
+    if n <= 1 {
+        1
+    } else {
+        // Otherwise, multiply n by the factorial of (n-1).
+        // Recursively calls the factorial function.
+        n * factorial(n - 1)
+    }
+}
+/*
+=============================================
+Finding the Largest Element in a Vector
+=============================================
+Purpose:
+    Demonstrate how to traverse a vector and
+    track the maximum value in Rust.
+Crates/Dependencies:
+    None (uses only the Rust standard library).
+Instructions to Run:
+    1. Save this code in a file named `largest_element.rs`.
+    2. Run with `cargo run`.
+Example Output:
+    The largest element is: 9
+*/
+
+fn main() {
+    // A sample vector of integers.
+    let numbers = vec![3, 7, 2, 9, 5, 1];
+    
+    // Use our function to find the largest element in the vector.
+    if let Some(max_value) = find_largest(&numbers) {
+        println!(""The largest element is: {}"", max_value);
+    } else {
+        println!(""The vector is empty!"");
+    }
+}
+
+/// Returns the largest element in a vector of integers, or `None` if the vector is empty.
+///
+/// # Arguments
+///
+/// * `values` - A reference to a vector of i32 values.
+///
+/// # Returns
+///
+/// * `Some(i32)` if the vector is non-empty, containing the largest value.
+/// * `None` if the vector is empty.
+fn find_largest(values: &[i32]) -> Option<i32> {
+    // Early return if the slice is empty.
+    if values.is_empty() {
+        return None;
+    }
+    
+    // Initialize the max to the first element.
+    let mut max_val = values[0];
+    
+    // Iterate over the slice to find the largest element.
+    // We borrow the values by reference since we only need to read them.
+    for &value in values.iter().skip(1) {
+        if value > max_val {
+            max_val = value;
+        }
+    }
+    
+    Some(max_val)
+}
+/*
+=========================================
+Breadth-First Search (Graph Traversal)
+=========================================
+Purpose:
+    Demonstrate BFS on a directed graph using Rust’s ownership
+    and borrowing features. This code includes building a graph
+    and traversing it from a given start node.
+Crates/Dependencies:
+    None (uses only the Rust standard library).
+Instructions to Run:
+    1. Save this code in a file named `bfs.rs`.
+    2. Run with `cargo run`.
+Example Output:
+    Visited: A, B, C, D, E
+*/
+
+use std::collections::{HashMap, VecDeque};
+
+fn main() {
+    // Define a small directed graph using a hash map.
+    // Each node maps to a vector of adjacent nodes.
+    let mut graph: HashMap<&str, Vec<&str>> = HashMap::new();
+    
+    // Populate the graph manually.
+    graph.insert(""A"", vec![""B"", ""C""]);
+    graph.insert(""B"", vec![""D""]);
+    graph.insert(""C"", vec![""D"", ""E""]);
+    graph.insert(""D"", vec![""E""]);
+    graph.insert(""E"", vec![]);
+    
+    // Perform BFS starting from node ""A"".
+    let visited_nodes = bfs(&graph, ""A"");
+    println!(""BFS Order: {:?}"", visited_nodes);
+}
+
+/// Performs a breadth-first search on a directed graph starting from `start`.
+///
+/// # Arguments
+///
+/// * `graph` - A reference to a HashMap representing the adjacency list of the graph.
+/// * `start` - The starting node for the BFS.
+///
+/// # Returns
+///
+/// * A vector of visited nodes in BFS order.
+fn bfs(graph: &HashMap<&str, Vec<&str>>, start: &str) -> Vec<String> {
+    // A queue to manage the BFS frontier.
+    let mut queue: VecDeque<&str> = VecDeque::new();
+    // A vector to keep track of visited nodes.
+    let mut visited: Vec<String> = Vec::new();
+
+    // Insert the start node into the queue.
+    queue.push_back(start);
+
+    // Process the queue until it's empty.
+    while let Some(current) = queue.pop_front() {
+        // Check if we've already visited this node.
+        if visited.contains(&current.to_string()) {
+            // If so, skip processing this node.
+            continue;
+        }
+        // Mark the current node as visited.
+        visited.push(current.to_string());
+
+        // Retrieve the adjacency list of the current node, if any.
+        // If current node doesn't exist in the graph, this returns an empty slice.
+        if let Some(neighbors) = graph.get(current) {
+            // Push each neighbor into the queue to visit later.
+            for neighbor in neighbors {
+                if !visited.contains(&neighbor.to_string()) {
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+    }
+
+    visited
+}
+/*
+==================================================
+File I/O Example with Basic Error Handling
+==================================================
+Purpose:
+    Demonstrate reading from and writing to a file,
+    leveraging Rust's `Result` for error handling.
+Crates/Dependencies:
+    None (uses Rust standard library - std::fs).
+Instructions to Run:
+    1. Create a `Cargo.toml` if not already available.
+    2. Save this code in a file named `file_io.rs`.
+    3. Provide an input file named `input.txt` in the same directory.
+    4. Run with `cargo run`.
+Example Output:
+    If `input.txt` contains ""Hello, world!"", then:
+    Read from file: Hello, world!
+    Done writing to output.txt
+*/
+
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Call our read_file function to read data from ""input.txt"".
+    let content = read_file(""input.txt"")?;
+    println!(""Read from file: {}"", content);
+    
+    // Write the content to ""output.txt"".
+    write_file(""output.txt"", &content)?;
+    println!(""Done writing to output.txt"");
+    
+    // Return Ok if everything went well.
+    Ok(())
+}
+
+/// Reads the entire content of a file into a String.
+/// Returns a Result that, on success, contains the file content.
+///
+/// # Arguments
+///
+/// * `filename` - The path to the file as a string slice.
+///
+/// # Errors
+///
+/// * If the file cannot be opened or read, an error is returned.
+fn read_file(filename: &str) -> Result<String, Box<dyn Error>> {
+    // Open the file in read-only mode.
+    let file = File::open(filename)?;
+    let reader = BufReader::new(file);
+    
+    // Collect all lines into a single string.
+    let mut content = String::new();
+    for line in reader.lines() {
+        // Each line could result in an error, so we handle it with `?`.
+        content.push_str(&line?);
+        content.push('\n');
+    }
+    
+    Ok(content)
+}
+
+/// Writes a given string to a file. Overwrites any existing content.
+///
+/// # Arguments
+///
+/// * `filename` - The path to the file as a string slice.
+/// * `content` - The text content to write.
+///
+/// # Errors
+///
+/// * If the file cannot be created or written to, an error is returned.
+fn write_file(filename: &str, content: &str) -> Result<(), Box<dyn Error>> {
+    // Use OpenOptions to create a new file or truncate if it exists.
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(filename)?;
+    
+    // Write the content to the file.
+    file.write_all(content.as_bytes())?;
+    
+    Ok(())
+}
+/*
+=======================================
+Concurrency Example: Multi-threaded Sum
+=======================================
+Purpose:
+    Showcase Rust's std::thread and message passing using channels
+    to sum parts of a large data set in parallel.
+Crates/Dependencies:
+    None (uses only Rust standard library).
+Instructions to Run:
+    1. Save this code in a file named `concurrent_sum.rs`.
+    2. Run with `cargo run`.
+Example Output:
+    The total sum is: 4950  (if the numbers 1..=100 are used)
+*/
+
+use std::thread;
+use std::sync::mpsc;
+
+fn main() {
+    // We'll sum the integers from 1 to 100 in parallel.
+    let numbers: Vec<u32> = (1..=100).collect();
+    
+    // Create a channel for threads to send partial sums back to main.
+    let (tx, rx) = mpsc::channel();
+    
+    // Split the data into chunks for parallel processing.
+    // For example, 2 chunks for demonstration; you can use more.
+    let chunk_size = numbers.len() / 2;
+    let chunks = numbers.chunks(chunk_size);
+    
+    for chunk in chunks {
+        let thread_tx = tx.clone();
+        // Clone the slice into a new Vec so each thread owns its data.
+        let data_chunk = chunk.to_vec();
+        
+        // Spawn a new thread for each chunk of data.
+        thread::spawn(move || {
+            let partial_sum: u32 = data_chunk.iter().sum();
+            // Send the partial sum through the channel.
+            thread_tx.send(partial_sum).expect(""Failed to send data"");
+        });
+    }
+    
+    // Drop the original transmitter to avoid deadlock once all threads have been spawned.
+    drop(tx);
+    
+    // Collect partial sums and compute the final total.
+    let mut total_sum = 0;
+    for received in rx {
+        total_sum += received;
+    }
+    
+    println!(""The total sum is: {}"", total_sum);
+}
+/*
+=================================
+Unsafe Rust Example (Low-Level)
+=================================
+Purpose:
+    Demonstrate a minimal use of an `unsafe` block to manipulate
+    raw pointers. Explains why the unsafe block is used and how
+    we maintain safety guarantees.
+Crates/Dependencies:
+    None (uses only the Rust standard library).
+Instructions to Run:
+    1. Save this code as `unsafe_example.rs`.
+    2. Run with `cargo run`.
+Example Output:
+    The number is: 10
+Notes on Safety:
+    We use unsafe here to illustrate pointer dereferencing. In real
+    applications, prefer higher-level abstractions for safety.
+*/
+
+fn main() {
+    // Create a mutable integer on the stack.
+    let mut num: i32 = 10;
+    
+    // Get a raw pointer to num.
+    let ptr = &mut num as *mut i32;
+    
+    // Use an unsafe block to dereference the raw pointer.
+    // We assert that the pointer is valid within this scope.
+    unsafe {
+        // This is considered unsafe because raw pointers
+        // do not guarantee memory safety. We rely on
+        // compile-time and run-time reasoning that `ptr`
+        // still points to valid data.
+        *ptr += 0; // No real change, just a demonstration.
+    }
+    
+    // Demonstrate that we can still access `num` safely here.
+    println!(""The number is: {}"", num);
+}
+/*
+==========================================
+Web Server Using Actix (Hello World)
+==========================================
+Purpose:
+    Set up a basic Actix web server that returns a ""Hello, World!""
+    response. Demonstrates route definition and server startup.
+Crates/Dependencies:
+    1. Add actix-web to Cargo.toml:
+       [dependencies]
+       actix-web = ""4""
+    2. Uses std::io::Result from Rust's standard library.
+Instructions to Run:
+    1. Save this code as `actix_server.rs`.
+    2. In the same directory, run `cargo run`.
+    3. The server starts on http://127.0.0.1:8080/
+Example Usage:
+    Visit http://127.0.0.1:8080/ in your web browser to see ""Hello, World!"".
+*/
+
+use actix_web::{get, App, HttpServer, Responder, HttpResponse};
+
+#[get(""/"")]
+async fn hello() -> impl Responder {
+    // Return a simple response body.
+    HttpResponse::Ok().body(""Hello, World!"")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // Start the Actix HTTP server on localhost at port 8080.
+    HttpServer::new(|| {
+        // Create the app with the route we defined above.
+        App::new()
+            .service(hello)
+    })
+    .bind((""127.0.0.1"", 8080))?
+    .run()
+    .await
+}
+/*
+===================================================
+CSV Parsing and Processing Example
+===================================================
+Purpose:
+    Demonstrate reading and processing CSV data using the `csv` crate.
+Crates/Dependencies:
+    1. Add csv to Cargo.toml:
+       [dependencies]
+       csv = ""1""
+    2. Also uses the Rust standard library for I/O.
+Instructions to Run:
+    1. Save as `csv_parser.rs`.
+    2. Create a `data.csv` file with some rows, e.g.:
+         name,score
+         Alice,50
+         Bob,75
+         Charlie,90
+    3. Run with `cargo run`.
+Example Output:
+    If `data.csv` is as above, it might print:
+    Processed row: (Alice, 50)
+    Processed row: (Bob, 75)
+    Processed row: (Charlie, 90)
+*/
+
+use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
+use csv::ReaderBuilder;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Open the CSV file. We wrap it in a BufReader for efficient reading.
+    let file = File::open(""data.csv"")?;
+    let buffered = BufReader::new(file);
+    
+    // Create a CSV reader with flexible configuration.
+    let mut rdr = ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(buffered);
+    
+    // Use a for loop to read each record.
+    for result in rdr.records() {
+        // A record can result in an error, so we use `?` to propagate it.
+        let record = result?;
+        
+        // Here we assume each CSV record has two fields: name and score.
+        let name = &record[0];
+        let score: i32 = record[1].parse()?;
+        
+        println!(""Processed row: ({}, {})"", name, score);
+    }
+    
+    Ok(())
+}
+/*
+=======================================================
+Command-Line Tool Using Clap
+=======================================================
+Purpose:
+    Demonstrate creating a CLI application in Rust that
+    takes arguments and performs a file copy.
+Crates/Dependencies:
+    1. Add clap to Cargo.toml:
+       [dependencies]
+       clap = { version = ""4"", features = [""derive""] }
+    2. Uses Rust standard library for file operations.
+Instructions to Run:
+    1. Save as `cli_copy.rs`.
+    2. Run: `cargo run -- --source <path_to_source> --destination <path_to_destination>`
+Example Usage:
+    cargo run -- --source input.txt --destination output.txt
+    This will copy the contents of input.txt into output.txt.
+*/
+
+use clap::Parser;
+use std::fs;
+use std::error::Error;
+
+#[derive(Parser, Debug)]
+#[command(name = ""clippy_copy"", version = ""1.0"", author = ""Rustacean"")]
+#[command(about = ""A simple CLI to copy a file's contents to another file"")]
+struct Cli {
+    /// Path to the source file
+    #[arg(short, long)]
+    source: String,
+    
+    /// Path to the destination file
+    #[arg(short, long)]
+    destination: String,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Parse the command-line arguments using Clap.
+    let cli = Cli::parse();
+    
+    // Perform the file copy using Rust's std::fs::copy function.
+    fs::copy(&cli.source, &cli.destination)?;
+    
+    println!(""Copied from {} to {}"", cli.source, cli.destination);
+    Ok(())
+}
+/*
+===============================================================
+Multi-threaded Web Scraper Example (Complex)
+===============================================================
+Purpose:
+    Demonstrate a more advanced Rust program that:
+      1. Spawns multiple threads to scrape a list of URLs.
+      2. Uses channels for coordination and concurrency.
+      3. Fetches HTML content and prints a summary.
+Crates/Dependencies:
+    1. reqwest for HTTP requests:
+       [dependencies]
+       reqwest = ""0.11""
+    2. tokio for async runtime (if using async reqwest functions):
+       [dependencies]
+       tokio = { version = ""1"", features = [""rt-multi-thread"", ""macros""] }
+    3. This example uses threads + blocking I/O. For purely async,
+       you'd adapt this to async/await syntax.
+Instructions to Run:
+    1. Save this code in `multithreaded_scraper.rs`.
+    2. Run `cargo run`.
+Notes:
+    This scraper doesn't parse or extract links. It simply fetches
+    the HTML content and prints the status code and length.
+*/
+
+use std::thread;
+use std::sync::mpsc;
+use std::time::Duration;
+use reqwest::blocking::Client;
+
+fn main() {
+    // List of URLs to scrape. In real usage, consider reading from a file or CLI.
+    let urls = vec![
+        ""https://www.rust-lang.org"",
+        ""https://www.example.com"",
+        ""https://httpbin.org/get"",
+    ];
+
+    // Create a channel to receive the scraping results from threads.
+    let (tx, rx) = mpsc::channel();
+
+    // We can reuse a single reqwest Client across threads.
+    // This is more efficient than creating one client per request.
+    let client = Client::new();
+
+    // For each URL, spawn a new thread to fetch the content.
+    for url in urls {
+        let thread_tx = tx.clone();
+        let thread_client = client.clone();
+        let thread_url = url.to_string();
+
+        thread::spawn(move || {
+            // Perform the HTTP GET request.
+            let response_result = thread_client.get(&thread_url).send();
+
+            // Prepare a message to send back through the channel.
+            let message = match response_result {
+                Ok(response) => {
+                    // If successful, read the text (or partial) to get its length.
+                    // This blocking call can fail, so we handle that with match.
+                    match response.text() {
+                        Ok(text) => format!(
+                            ""[SUCCESS] Fetched: {} | Length: {} chars"",
+                            thread_url,
+                            text.len()
+                        ),
+                        Err(e) => format!(""[ERROR] Failed to read response text: {}"", e),
+                    }
+                }
+                Err(e) => format!(""[ERROR] Failed to fetch {}: {}"", thread_url, e),
+            };
+
+            // Send the result back to the main thread.
+            thread_tx.send(message).expect(""Failed to send data"");
+        });
+    }
+
+    // Drop the original transmitter to ensure the channel closes when threads finish.
+    drop(tx);
+
+    // Collect results from all threads.
+    while let Ok(result_message) = rx.recv() {
+        println!(""{}"", result_message);
+    }
+
+    // Give threads a little time if needed (or could join threads explicitly).
+    // This is not strictly required, but sometimes helpful in demonstration code.
+    thread::sleep(Duration::from_millis(500));
+}
+/*
+====================================
+Quicksort Algorithm (In-place)
+====================================
+Amaç:
+    Bir diziyi (slice) yerinde quicksort algoritması kullanarak
+    sıralamak. Pivot olarak son elemanı seçiyoruz.
+Gereksinimler:
+    - Yalnızca Rust standard library kullanılır.
+Çalıştırma Talimatları:
+    1. Kodu `quicksort.rs` olarak kaydedin.
+    2. `cargo run` komutuyla çalıştırın.
+Beklenen Çıktı:
+    Sıralanmış dizi ekrana yazılır.
+*/
+
+fn main() {
+    let mut data = vec![29, 10, 14, 37, 13, 14, 1, 100, 72];
+    println!(""Orijinal dizi: {:?}"", data);
+    
+    quicksort(&mut data);
+    println!(""Sıralanmış dizi: {:?}"", data);
+}
+
+/// In-place quicksort fonksiyonu.
+///
+/// # Parametreler
+/// * `arr` - Sıralanacak verileri taşıyan mutable slice.
+/// 
+/// # Açıklama
+/// 1. `quicksort` fonksiyonu `arr` boyutu 2 veya daha az ise zaten sıralı kabul eder.
+/// 2. Eğer boyut daha büyükse, pivot seçilir ve `partition` fonksiyonu ile pivotun
+///    doğru yerine yerleşmesi sağlanır. Sonrasında pivotun sol ve sağ parçaları
+///    kendi içinde recursive olarak sıralanır.
+fn quicksort(arr: &mut [i32]) {
+    let len = arr.len();
+    if len < 2 {
+        // Dizi 0 veya 1 elemanlıysa zaten sıralıdır.
+        return;
+    }
+    // Diziyi partition fonksiyonu ile böl, dönen pivot indeksi ile iki tarafta recursive çağrı yap.
+    let pivot_index = partition(arr);
+    // pivot_index konumu artık doğru sıradadır.
+    
+    // Soldaki alt dilimi (pivot hariç) quicksort ile sırala.
+    quicksort(&mut arr[0..pivot_index]);
+    // Sağdaki alt dilimi (pivot hariç) quicksort ile sırala.
+    quicksort(&mut arr[pivot_index+1..]);
+}
+
+/// `partition` fonksiyonu:
+/// * Pivot olarak slice'ın son elemanını kullanır.
+/// * Pivotun ""doğru"" pozisyonunu bulur ve onu oraya yerleştirir.
+/// * Pivotun solundaki elemanlar pivotdan küçük, sağındaki elemanlar pivotdan büyük olacak şekilde verileri düzenler.
+///
+/// # Döndürdüğü Değer
+/// * Pivotun yerleştirildiği (yeni) index.
+fn partition(arr: &mut [i32]) -> usize {
+    let len = arr.len();
+    let pivot = arr[len - 1];
+    let mut i = 0; // i, pivotdan küçük elemanların yerleştirileceği indexi tutar.
+
+    // Son eleman pivot, o yüzden sondan bir önceki elemana kadar inceliyoruz.
+    for j in 0..(len - 1) {
+        if arr[j] < pivot {
+            arr.swap(i, j); 
+            i += 1;
+        }
+    }
+    // Pivotu final yerine taşı (i indeksine).
+    arr.swap(i, len - 1);
+    i
+}
+/*
+=====================================
+Merge Sort Algorithm (Recursive)
+=====================================
+Amaç:
+    Bir dilimi (slice) merge sort algoritması kullanarak sıralamak.
+Gereksinimler:
+    - Yalnızca Rust standard library kullanılır.
+Çalıştırma Talimatları:
+    1. Kodu `mergesort.rs` olarak kaydedin.
+    2. `cargo run` komutuyla çalıştırın.
+Beklenen Çıktı:
+    Sıralanmış dizi ekrana yazılır.
+*/
+
+fn main() {
+    let mut data = vec![5, 2, 8, 14, 1, 9, 3];
+    println!(""Orijinal veri: {:?}"", data);
+    
+    mergesort(&mut data);
+    println!(""Sıralanmış veri: {:?}"", data);
+}
+
+/// Merge sort fonksiyonu.
+///
+/// # Mantık
+/// 1. Dizi iki parçaya bölünür.
+/// 2. Her parça ayrı ayrı merge sort edilir (recursively).
+/// 3. İki parça birleştirilir (merge).
+fn mergesort(arr: &mut [i32]) {
+    let n = arr.len();
+    // Dizi tek elemanlı veya boşsa sıralamaya gerek yok.
+    if n <= 1 {
+        return;
+    }
+    
+    // Orta noktayı bul.
+    let mid = n / 2;
+    // İki alt dilim oluştur: sol ve sağ.
+    // Rust'ta slice'ları bölerek borç alıyoruz; mutable referanslar
+    // eşzamanlı olarak farklı parçalara verilince UB olmaz.
+    mergesort(&mut arr[..mid]);
+    mergesort(&mut arr[mid..]);
+    
+    // Geçici vector ile birleştirme işlemi (merge).
+    let mut temp = Vec::with_capacity(n);
+    
+    let (mut i, mut j) = (0, mid);
+    
+    // İki dilimi de dolaşarak küçük elemanı temp'e at.
+    while i < mid && j < n {
+        if arr[i] <= arr[j] {
+            temp.push(arr[i]);
+            i += 1;
+        } else {
+            temp.push(arr[j]);
+            j += 1;
+        }
+    }
+    
+    // Kalan elemanlar varsa ekle.
+    temp.extend_from_slice(&arr[i..mid]);
+    temp.extend_from_slice(&arr[j..n]);
+    
+    // temp içeriğini tekrar arr'a kopyala.
+    arr.copy_from_slice(&temp);
+}
+/*
+==========================================
+JSON Processing with Serde
+==========================================
+Amaç:
+    Serde kullanarak bir JSON dosyasını parse etmek (okumak) ve
+    güncellenmiş hâlini yeniden JSON olarak kaydetmek.
+Kullanılacak Krate:
+    1. Serde ve serde_derive (otomatik türetme için).
+    2. Serde_json (JSON işlemleri için).
+Cargo.toml Örnek:
+    [dependencies]
+    serde = { version = ""1.0"", features = [""derive""] }
+    serde_json = ""1.0""
+Çalıştırma Talimatları:
+    1. `cargo run` ile çalıştırın.
+    2. `data.json` isminde basit bir JSON dosyası oluşturabilirsiniz.
+         Örnek:
+         {
+           ""name"": ""Alice"",
+           ""age"": 30
+         }
+Beklenen Çıktı:
+    Okunan verinin güncellenmiş hâli `updated_data.json` dosyasına kaydedilir.
+*/
+
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::error::Error;
+
+/// Kişi verisini tutan struct.
+/// Derive ile Serialize ve Deserialize otomatik eklenir.
+#[derive(Serialize, Deserialize, Debug)]
+struct Person {
+    name: String,
+    age: u32,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // JSON dosyasını okuyalım.
+    let data = fs::read_to_string(""data.json"")?;
+    
+    // JSON'u `Person` tipine parse edelim.
+    let mut person: Person = serde_json::from_str(&data)?;
+    println!(""Okunan kişi: {:?}"", person);
+    
+    // Yaşı 1 artırıyoruz.
+    person.age += 1;
+    
+    // Yeni veriyi JSON'a çevir.
+    let updated_json = serde_json::to_string_pretty(&person)?;
+    
+    // Yeni JSON'u kaydet.
+    fs::write(""updated_data.json"", updated_json)?;
+    
+    println!(""Veri güncellendi ve 'updated_data.json' dosyasına yazıldı."");
+    Ok(())
+}
+/*
+========================================================
+Trait ve Generics ile Özel Stack Veri Yapısı
+========================================================
+Amaç:
+    - Generic bir Stack veri yapısı oluşturmak.
+    - Bir trait tanımlamak ve bu trait’i struct üzerinde uygulamak.
+Gereksinimler:
+    - Yalnızca Rust standard library.
+Çalıştırma Talimatları:
+    1. `cargo run` komutu ile çalıştırabilirsiniz.
+    2. Kod dosyası ismi `generic_stack.rs` olabilir.
+Beklenen Çıktı:
+    Stack ile push/pop yapılan işlemler ekranda gösterilir.
+*/
+
+fn main() {
+    // i32 tipinde elemanlar tutan stack oluştur.
+    let mut int_stack = GenericStack::new();
+    int_stack.push(10);
+    int_stack.push(20);
+    int_stack.push(30);
+    
+    println!(""Pop: {:?}"", int_stack.pop()); // 30
+    
+    // &dyn StackTrait trait nesnesi üzerinden işlem yapalım.
+    let stack_ref: &dyn StackTrait<i32> = &int_stack;
+    println!(""Top elemanı: {:?}"", stack_ref.peek()); // 20
+    
+    println!(""Stack uzunluğu: {}"", stack_ref.size()); // 2
+}
+
+/// Bir stack üzerinde temel fonksiyonlar sağlayan bir trait.
+trait StackTrait<T> {
+    fn push(&mut self, item: T);
+    fn pop(&mut self) -> Option<T>;
+    fn peek(&self) -> Option<&T>;
+    fn size(&self) -> usize;
+}
+
+/// Generic bir stack yapısı. `Vec` kullanarak implement ediyoruz.
+struct GenericStack<T> {
+    items: Vec<T>,
+}
+
+impl<T> GenericStack<T> {
+    /// Yeni bir `GenericStack` döndüren yardımcı fonksiyon.
+    fn new() -> Self {
+        GenericStack { items: Vec::new() }
+    }
+}
+
+/// `StackTrait` traitini `GenericStack` üzerinde implemente ediyoruz.
+impl<T> StackTrait<T> for GenericStack<T> {
+    /// Stack'e eleman eklemek için push.
+    fn push(&mut self, item: T) {
+        self.items.push(item);
+    }
+    
+    /// Stack'ten eleman çıkarmak için pop.
+    fn pop(&mut self) -> Option<T> {
+        self.items.pop()
+    }
+    
+    /// Stack'in en üstündeki (en son eklenen) elemana sadece bakmak.
+    fn peek(&self) -> Option<&T> {
+        self.items.last()
+    }
+    
+    /// Stack'in kaç eleman barındırdığını döndürür.
+    fn size(&self) -> usize {
+        self.items.len()
+    }
+}
+/*
+====================================================
+Custom Macro Example
+====================================================
+Amaç:
+    Rust makrolarının (declarative macro) basit kullanımını göstermek.
+    Bu örnekte bir `vec_of_strings!` makrosu tanımlıyoruz.
+Gereksinimler:
+    - Yalnızca Rust standard library.
+Çalıştırma Talimatları:
+    1. Dosya adı `custom_macro.rs` olabilir.
+    2. `cargo run` komutu ile çalıştırabilirsiniz.
+Beklenen Çıktı:
+    vec_of_strings makrosuyla oluşturulan vektördeki elemanlar ekrana yazılır.
+*/
+
+/// Declarative macro tanımı. 
+/// `vec_of_strings!` makrosu virgülle ayrılmış string literal'lerden bir `Vec<String>` üretir.
+#[macro_export]
+macro_rules! vec_of_strings {
+    // ( $( ... ),* ) => birden fazla argüman
+    // $()* => 0 veya daha fazla tekrar
+    // $x:expr => bir ifade
+    ( $( $x:expr ),* ) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                // Her ifade bir `String`e dönüştürülerek vektöre eklenir.
+                temp_vec.push($x.to_string());
+            )*
+            temp_vec
+        }
+    };
+}
+
+fn main() {
+    // Makroyu kullanarak bir string vektörü oluşturalım.
+    let fruits = vec_of_strings!(""Apple"", ""Banana"", ""Cherry"");
+    println!(""Oluşturulan meyve listesi: {:?}"", fruits);
+}
+/*
+============================================================
+Rocket Tabanlı REST API (CRUD Örneği)
+============================================================
+Amaç:
+    - Rocket kullanarak basit bir REST API oluşturma.
+    - GET, POST, PUT, DELETE örnekleri gösterilir.
+Gereksinimler:
+    1. `Rocket` krate'ini kullanır. Cargo.toml'da:
+       [dependencies]
+       rocket = ""0.5.0-rc.3""  // Sürüm fark edebilir
+    2. JSON dönüşümü için `serde` + `serde_json` kullanır.
+Çalıştırma Talimatları:
+    1. `cargo run` ile projeyi başlatın.
+    2. Örnek istekler (terminal veya Postman üzerinden):
+       - GET http://127.0.0.1:8000/items
+       - POST http://127.0.0.1:8000/items  (JSON body: {""id"":1,""name"":""Item1""})
+       - PUT http://127.0.0.1:8000/items/1 (JSON body: {""id"":1,""name"":""UpdatedItem""})
+       - DELETE http://127.0.0.1:8000/items/1
+*/
+
+#[macro_use]
+extern crate rocket;
+
+use rocket::serde::{json::Json, Serialize, Deserialize};
+use std::sync::Mutex;
+use rocket::State;
+use rocket::http::Status;
+
+/// API içinde kullanacağımız basit veri modeli:
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(crate = ""rocket::serde"")]
+struct Item {
+    id: u32,
+    name: String,
+}
+
+/// Uygulama durum verisi: item'ları tutan bir vektör.
+/// Mutex ile koruyoruz ki aynı anda birden fazla istek geldiğinde veri
+/// tutarlılığını koruyalım.
+struct AppState {
+    items: Mutex<Vec<Item>>,
+}
+
+#[get(""/items"")]
+fn get_items(state: &State<AppState>) -> Json<Vec<Item>> {
+    // Mutex içindeki item vektörüne thread-safe erişim.
+    let items = state.items.lock().unwrap();
+    // Clone ederek JSON'a göndersin, ownership sorunlarını aşalım.
+    Json(items.clone())
+}
+
+#[post(""/items"", data = ""<item>"")]
+fn create_item(state: &State<AppState>, item: Json<Item>) -> Status {
+    let mut items = state.items.lock().unwrap();
+    // Yeni item ekle.
+    items.push(item.into_inner());
+    // 201 Created statüsü yollayabiliriz.
+    Status::Created
+}
+
+#[put(""/items/<id>"", data = ""<updated>"")]
+fn update_item(state: &State<AppState>, id: u32, updated: Json<Item>) -> Status {
+    let mut items = state.items.lock().unwrap();
+    // Id'si eşleşen item'ı bulalım.
+    if let Some(existing_item) = items.iter_mut().find(|it| it.id == id) {
+        existing_item.name = updated.name.clone();
+        Status::Ok
+    } else {
+        // Bulunamazsa 404 Not Found
+        Status::NotFound
+    }
+}
+
+#[delete(""/items/<id>"")]
+fn delete_item(state: &State<AppState>, id: u32) -> Status {
+    let mut items = state.items.lock().unwrap();
+    let initial_len = items.len();
+    // Verilen id'ye sahip item'ları filtre dışı bırakarak silme işlemi.
+    items.retain(|it| it.id != id);
+    
+    if items.len() < initial_len {
+        Status::Ok
+    } else {
+        Status::NotFound
+    }
+}
+
+#[launch]
+fn rocket() -> _ {
+    // Başlangıçta boş bir item listesi ile state'i oluşturuyoruz.
+    rocket::build()
+        .manage(AppState {
+            items: Mutex::new(vec![]),
+        })
+        .mount(""/"", routes![get_items, create_item, update_item, delete_item])
+}
+/// This function calculates the factorial of a number using recursion.
+/// - The base case is when n == 0 or n == 1, returning 1.
+/// - Otherwise, it recursively multiplies n by the factorial of (n-1).
+fn factorial(n: u64) -> u64 {
+    // If n is 0 or 1, return 1 (base case).
+    if n <= 1 {
+        1
+    } else {
+        // Recursive case: n * factorial of (n-1)
+        n * factorial(n - 1)
+    }
+}
+
+fn main() {
+    // Calculate the factorial of 5.
+    let result = factorial(5);
+    println!(""Factorial of 5 is {}"", result);
+}
+/// Finds the largest element in a vector of i32 values.
+/// - We handle the case where the vector might be empty.
+/// - Returns an Option<i32>, where None indicates an empty vector.
+fn find_largest(numbers: &[i32]) -> Option<i32> {
+    // Return None if the slice is empty
+    if numbers.is_empty() {
+        return None;
+    }
+
+    // Start with the first element as the largest
+    let mut largest = numbers[0];
+    // Iterate through the numbers, updating `largest` when a bigger number is found
+    for &num in numbers.iter().skip(1) {
+        if num > largest {
+            largest = num;
+        }
+    }
+
+    // Return the largest found
+    Some(largest)
+}
+
+fn main() {
+    // Example vector of numbers
+    let nums = vec![3, 8, 15, 2, 42, 7];
+    // Call our function
+    if let Some(largest) = find_largest(&nums) {
+        println!(""The largest element is {}"", largest);
+    } else {
+        println!(""The vector is empty, no largest element found."");
+    }
+}
+fn main() {
+    // Define a sample string
+    let text = String::from(""Hello, world!"");
+
+    println!(""Original: \""{}\"""", text);
+
+    // Split the string by whitespace and commas
+    println!(""After splitting:"");
+    for word in text.split_whitespace() {
+        println!(""\""{}\"""", word);
+    }
+
+    // Create a new string by appending more text
+    let combined = format!(""{} (Rusty)"", text);
+    println!(""Combined: \""{}\"""", combined);
+}
+/// Recursively sorts a slice of i32 values in ascending order using the quicksort algorithm.
+/// - Partitions the array around a pivot.
+/// - Recursively sorts the two partitions.
+/// - Rust slice references ensure safe borrowing without data races.
+fn quicksort(arr: &mut [i32]) {
+    if arr.len() <= 1 {
+        // Base case: A slice of length 0 or 1 is already sorted
+        return;
+    }
+
+    // Partition the slice
+    let pivot_index = partition(arr);
+
+    // Recursively sort the left partition
+    quicksort(&mut arr[0..pivot_index]);
+    // Recursively sort the right partition
+    quicksort(&mut arr[pivot_index + 1..]);
+}
+
+/// Partitions the slice around a pivot (chosen here as the last element).
+/// Elements smaller than the pivot move to the left, others to the right.
+/// Returns the final pivot index.
+fn partition(arr: &mut [i32]) -> usize {
+    let pivot = arr[arr.len() - 1];
+    let mut i = 0; // This will track the boundary for elements less than pivot
+
+    // Move elements less than pivot to the front of the slice
+    for j in 0..arr.len() - 1 {
+        if arr[j] < pivot {
+            arr.swap(i, j);
+            i += 1;
+        }
+    }
+    // Finally, place the pivot after the last smaller element
+    arr.swap(i, arr.len() - 1);
+    i
+}
+
+fn main() {
+    let mut data = [10, 7, 1, 3, 5, 2];
+    quicksort(&mut data);
+    println!(""Sorted array: {:?}"", data);
+}
+use std::collections::VecDeque;
+
+/// Represents a graph using an adjacency list.
+/// Each node index can have multiple neighboring nodes.
+struct Graph {
+    adjacency_list: Vec<Vec<usize>>,
+}
+
+impl Graph {
+    /// Creates a new Graph with a given size.
+    fn new(size: usize) -> Self {
+        Graph {
+            adjacency_list: vec![Vec::new(); size],
+        }
+    }
+
+    /// Adds an edge between two nodes.
+    /// For a directed graph, you might only add one direction.
+    /// For an undirected graph, we add both directions.
+    fn add_edge(&mut self, from: usize, to: usize) {
+        self.adjacency_list[from].push(to);
+        self.adjacency_list[to].push(from);
+    }
+
+    /// Performs a breadth-first search (BFS) starting at `start_node`.
+    /// Prints the nodes in the order they are visited.
+    fn bfs(&self, start_node: usize) {
+        let mut visited = vec![false; self.adjacency_list.len()];
+        let mut queue = VecDeque::new();
+
+        visited[start_node] = true;
+        queue.push_back(start_node);
+
+        print!(""BFS Traversal starting from node {}: "", start_node);
+
+        while let Some(current) = queue.pop_front() {
+            print!(""{} "", current);
+
+            // Check all adjacent nodes
+            for &neighbor in &self.adjacency_list[current] {
+                if !visited[neighbor] {
+                    visited[neighbor] = true;
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+        println!();
+    }
+}
+
+fn main() {
+    // Create a graph of 5 nodes
+    let mut graph = Graph::new(5);
+
+    // Add some edges (undirected)
+    graph.add_edge(0, 1);
+    graph.add_edge(0, 2);
+    graph.add_edge(1, 3);
+    graph.add_edge(2, 4);
+
+    // Perform BFS starting from node 0
+    graph.bfs(0);
+}
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::thread;
+
+/// Reads a file line by line, distributing lines among multiple threads.
+/// Each thread prints the line it processes. 
+/// - Demonstrates concurrency with Rust threads.
+/// - Ensures safe memory access through Rust’s ownership model.
+fn main() {
+    // Number of worker threads to spawn
+    let num_threads = 2;
+
+    // Open the file
+    let file = File::open(""data.txt"").expect(""Unable to open file"");
+    let reader = BufReader::new(file);
+
+    // Collect all lines into a vector
+    let lines: Vec<String> = reader
+        .lines()
+        .map(|l| l.expect(""Could not read line""))
+        .collect();
+
+    // Create threads, distributing the lines among them
+    let mut handles = Vec::new();
+    for thread_id in 0..num_threads {
+        // Clone lines vector to move into the thread
+        let lines_clone = lines.clone();
+
+        // Spawn a new thread
+        let handle = thread::spawn(move || {
+            // Process lines assigned to this thread
+            for (index, line) in lines_clone.iter().enumerate() {
+                if index % num_threads == thread_id {
+                    println!(""Thread {} read line: {}"", thread_id, line);
+                }
+            }
+        });
+
+        // Push thread handle into vector for later joining
+        handles.push(handle);
+    }
+
+    // Join all threads to ensure they finish before exiting main
+    for handle in handles {
+        handle.join().expect(""Thread panicked"");
+    }
+}
+fn main() {
+    // Create a mutable integer
+    let mut num = 42;
+
+    // Obtain a raw pointer to num
+    let r1 = &mut num as *mut i32;
+
+    // `unsafe` block needed to dereference raw pointers
+    unsafe {
+        // Print the original value through raw pointer dereference
+        println!(""Original number: {}"", *r1);
+
+        // Modify the value
+        *r1 = 100;
+
+        // Print the changed value
+        println!(""Changed number: {}"", *r1);
+    }
+}
+use actix_web::{get, web, App, HttpServer, Responder};
+use serde::Serialize;
+
+/// A simple struct used for serializing a JSON response.
+#[derive(Serialize)]
+struct HelloResponse {
+    message: String,
+}
+
+/// Define a handler for GET requests to ""/hello"".
+#[get(""/hello"")]
+async fn hello() -> impl Responder {
+    // Construct a JSON response using the HelloResponse struct
+    web::Json(HelloResponse {
+        message: ""Hello from Actix!"".to_string(),
+    })
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // Start an HTTP server binding to local address 127.0.0.1:8080
+    HttpServer::new(|| {
+        // Build our application with the hello endpoint
+        App::new().service(hello)
+    })
+    .bind((""127.0.0.1"", 8080))?
+    .run()
+    .await
+}
+use csv::ReaderBuilder;
+use std::error::Error;
+use std::fs::File;
+
+/// Reads a CSV file where each row has a single integer column titled ""value"".
+/// Summarizes these values and prints the total sum to stdout.
+fn main() -> Result<(), Box<dyn Error>> {
+    // Open the CSV file
+    let file = File::open(""data.csv"")?;
+    // Create a CSV reader; flexible options with ReaderBuilder
+    let mut rdr = ReaderBuilder::new()
+        .has_headers(true) // the file has a header row
+        .from_reader(file);
+
+    let mut sum = 0;
+
+    // Iterate over each record
+    for result in rdr.records() {
+        // Parse the record (a single line in the CSV)
+        let record = result?;
+        // Convert the value from string to integer
+        let value: i32 = record.get(0).unwrap_or(""0"").parse()?;
+        sum += value;
+    }
+
+    println!(""Sum of column: {}"", sum);
+    Ok(())
+}
+use clap::Parser;
+use std::fs;
+use std::io::{self, Read};
+
+/// Command-line arguments for our word-count tool.
+/// - The `file` argument takes a path to a text file.
+#[derive(Parser, Debug)]
+#[command(name = ""word_counter"")]
+#[command(version = ""1.0"")]
+#[command(about = ""Counts words in a text file"", long_about = None)]
+struct Cli {
+    /// Path to the text file
+    #[arg(short, long)]
+    file: String,
+}
+
+fn main() -> io::Result<()> {
+    // Parse command-line arguments
+    let args = Cli::parse();
+
+    // Read the file contents
+    let contents = fs::read_to_string(&args.file)?;
+
+    // Count the words by splitting on whitespace
+    let word_count = contents.split_whitespace().count();
+
+    // Print the result
+    println!(""The file \""{}\"" contains {} words."", args.file, word_count);
+
+    Ok(())
+}
+use ndarray::{arr1, Array1};
+
+/// Implements a simple linear regression y = w * x + b using gradient descent.
+/// Demonstrates how ndarray can be used for vectorized math operations.
+fn main() {
+    // Example data: We want to learn the function y = 3x + 2
+    let x_data = arr1(&[1.0, 2.0, 3.0, 4.0]); 
+    let y_data = arr1(&[5.0, 8.0, 11.0, 14.0]);
+
+    // Hyperparameters
+    let learning_rate = 0.01;
+    let epochs = 1000;
+
+    // Initialize weights (w) and bias (b) to 0.0
+    let mut w = 0.0;
+    let mut b = 0.0;
+
+    println!(""Initial weights: {}"", w);
+    println!(""Initial bias: {}"", b);
+
+    // Gradient descent
+    for _ in 0..epochs {
+        // Forward pass: predict = w*x_data + b
+        let y_pred: Array1<f64> = &x_data * w + b;
+
+        // Compute errors
+        let error = &y_pred - &y_data;
+
+        // Calculate gradients (dL/dw, dL/db) 
+        // For mean squared error: gradient w.r.t w is (2/N)*Σ((y_pred - y_data)*x_data)
+        // gradient w.r.t b is (2/N)*Σ(y_pred - y_data)
+        let dw = (2.0 / x_data.len() as f64) * (&error * &x_data).sum();
+        let db = (2.0 / x_data.len() as f64) * error.sum();
+
+        // Update parameters
+        w -= learning_rate * dw;
+        b -= learning_rate * db;
+    }
+
+    println!(""Final weights: {}"", w);
+    println!(""Final bias: {}"", b);
+}
+",chatgpt
+Swift,"//
+// File: UserModelView.swift
+// This demonstrates a simple MV pattern in Swift, using a command-line approach
+// instead of an actual iOS UI. A User model and a View simulate the data flow.
+// Usage:
+//   swift UserModelView.swift
+// Example Output:
+//   John Doe is 30 years old.
+//   Changing age to 31...
+//   John Doe is 31 years old.
+//
+
+import Foundation
+
+// Model: Holds user data
+struct User {
+    var name: String
+    var age: Int
+}
+
+// View: Displays user data (simulated in console)
+struct UserView {
+    func displayUserInfo(user: User) {
+        print(""\(user.name) is \(user.age) years old."")
+    }
+}
+
+// Controller (or ViewModel in a more MVVM approach): 
+// Binds model and view together
+struct UserController {
+    private var user: User
+    private var view: UserView
+    
+    init(user: User, view: UserView) {
+        self.user = user
+        self.view = view
+    }
+    
+    mutating func updateUserAge(to newAge: Int) {
+        user.age = newAge
+    }
+    
+    func display() {
+        view.displayUserInfo(user: user)
+    }
+}
+
+var myUser = User(name: ""John Doe"", age: 30)
+let myView = UserView()
+var myController = UserController(user: myUser, view: myView)
+
+// Display initial user info
+myController.display()
+
+// Update user's age
+print(""Changing age to 31..."")
+myController.updateUserAge(to: 31)
+
+// Display updated info
+myController.display()
+",chatgpt
+HTML,"<!-- 
+  This is a comprehensive HTML file that demonstrates various HTML tags 
+  and features. Each section includes comments explaining the usage.
+  You can use this as a reference or part of a dataset to distinguish 
+  AI-generated code from user-generated code.
+-->
+
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+  <!-- 
+    The DOCTYPE above indicates that this is an HTML5 document.
+    The <html> tag wraps the entire page content.
+    We use lang=""en"" for English language.
+  -->
+  <meta charset=""UTF-8"">
+  <!-- 
+    The <meta> charset tag specifies the character encoding for the HTML document (UTF-8).
+  -->
+
+  <title>Comprehensive HTML Example</title>
+  <!-- 
+    The <title> tag defines the title in the browser's title bar or tab.
+  -->
+
+  <meta name=""description"" content=""Example HTML document demonstrating various HTML5 tags and features."">
+  <meta name=""keywords"" content=""HTML, Example, Tags, Comprehensive"">
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+  <!-- 
+    <meta> tags provide metadata about the document.
+    - description
+    - keywords
+    - viewport for responsive design
+  -->
+
+  <base href=""https://example.com/"">
+  <!-- 
+    The <base> tag defines the base URL for all relative URLs in the document.
+    If you use relative links, they will be relative to this base URL.
+  -->
+
+  <style>
+    /* 
+      Example of internal CSS. 
+      We set a font-family for the body, and define a highlight class.
+    */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .highlight {
+      background-color: yellow;
+    }
+
+    header, nav, main, footer, aside, section, article {
+      margin: 16px;
+      padding: 16px;
+      border: 1px solid #ccc;
+    }
+
+    /* Example style for a code snippet */
+    code {
+      background-color: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 
+    The <body> tag contains all the content of an HTML document.
+  -->
+
+  <!-- HEADER SECTION -->
+  <header>
+    <!-- 
+      <header> typically contains introductory content or navigation elements.
+    -->
+    <h1>Comprehensive HTML Example</h1>
+    <!-- <h1> is the highest-level heading on a page. -->
+    <p>
+      <strong>Note:</strong> This document aims to show common and less common HTML tags.
+    </p>
+  </header>
+
+  <!-- NAVIGATION SECTION -->
+  <nav>
+    <!-- 
+      <nav> is for primary or secondary navigation links.
+    -->
+    <ul>
+      <!-- 
+        <ul> stands for an unordered list.
+      -->
+      <li><a href=""#section1"">Go to Section One</a></li>
+      <li><a href=""#section2"">Go to Section Two</a></li>
+      <li><a href=""https://example.com"" target=""_blank"" rel=""noopener"">External Link</a></li>
+    </ul>
+  </nav>
+
+  <!-- MAIN CONTENT AREA -->
+  <main>
+    <!-- 
+      <main> is the dominant content area unique to the document.
+    -->
+
+    <!-- ARTICLE SECTION -->
+    <article id=""section1"">
+      <!-- 
+        <article> represents an independent piece of content that can stand on its own.
+      -->
+      <h2>Article Heading</h2>
+      <p>
+        This is a paragraph demonstrating various inline tags:
+        <strong>strong</strong> for important text,
+        <em>emphasis</em> for emphasized text,
+        <mark>mark</mark> for highlighting,
+        and <span class=""highlight"">a custom highlight class</span>.
+      </p>
+      <p>
+        Let’s also show <b>bold</b> and <i>italic</i> text in a more traditional way.
+        Sometimes you might use <u>underline</u> or <s>strikethrough</s>.
+      </p>
+      <p>
+        <abbr title=""HyperText Markup Language"">HTML</abbr> is the standard language for creating web pages.
+      </p>
+
+      <!-- FIGURE + FIGCAPTION (IMAGE EXAMPLE) -->
+      <figure>
+        <!-- 
+          <figure> is used to group an illustration, image, diagram, or code snippet.
+        -->
+        <img src=""images/example.jpg"" alt=""Example Image"" width=""300"" height=""200"">
+        <!-- 
+          The <img> tag embeds an image. 
+          alt is alternative text for accessibility.
+        -->
+        <figcaption>An example image with a caption.</figcaption>
+      </figure>
+
+      <!-- BLOCKQUOTE, CITE, Q EXAMPLES -->
+      <blockquote cite=""https://www.goodreads.com/quotes"">
+        <!-- 
+          <blockquote> represents a section quoted from another source.
+        -->
+        “This is an example of a blockquote, usually from an external source.”
+      </blockquote>
+      <p>
+        Short inline quote: <q>Here is an inline quoted text.</q> with the <q>q</q> tag.
+      </p>
+      <p>
+        <cite>Famous Author</cite>
+        <!-- 
+          <cite> is used to describe a reference to a creative work (e.g., book, website, etc.).
+        -->
+      </p>
+
+      <!-- AUDIO EXAMPLE -->
+      <audio controls>
+        <!-- 
+          The <audio> tag is used to embed sound content.
+        -->
+        <source src=""media/example.mp3"" type=""audio/mpeg"">
+        Your browser does not support the audio element.
+      </audio>
+
+      <!-- VIDEO EXAMPLE -->
+      <video controls width=""320"" height=""240"">
+        <!-- 
+          The <video> tag is used to embed video content.
+        -->
+        <source src=""media/example.mp4"" type=""video/mp4"">
+        Your browser does not support the video element.
+      </video>
+
+      <!-- EMBED EXAMPLE -->
+      <embed src=""docs/sample.pdf"" type=""application/pdf"" width=""400"" height=""300"" />
+      <!-- 
+        <embed> is used to embed external content (like PDFs).
+      -->
+
+      <!-- OBJECT EXAMPLE -->
+      <object data=""docs/sample.pdf"" type=""application/pdf"" width=""400"" height=""300"">
+        <p>
+          Your browser does not support embedded PDFs. 
+          <a href=""docs/sample.pdf"">Download PDF</a> instead.
+        </p>
+      </object>
+      <!-- 
+        <object> can embed external resources like PDFs or Flash (deprecated).
+      -->
+
+      <!-- FORM EXAMPLE -->
+      <form action=""/submit"" method=""post"">
+        <!-- 
+          <form> is used to collect user input.
+          action: the server endpoint.
+          method: HTTP method (GET/POST).
+        -->
+
+        <label for=""fname"">First Name:</label>
+        <input type=""text"" id=""fname"" name=""fname"" placeholder=""Enter first name"">
+        <br><br>
+
+        <label for=""favcolor"">Favorite Color:</label>
+        <input type=""color"" id=""favcolor"" name=""favcolor"">
+        <br><br>
+
+        <label for=""cars"">Choose a car:</label>
+        <select id=""cars"" name=""cars"">
+          <option value=""volvo"">Volvo</option>
+          <option value=""saab"">Saab</option>
+          <option value=""opel"">Opel</option>
+          <option value=""audi"">Audi</option>
+        </select>
+        <br><br>
+
+        <input type=""checkbox"" id=""subscribe"" name=""subscribe"" value=""newsletter"">
+        <label for=""subscribe"">Subscribe to newsletter</label>
+        <br><br>
+
+        <input type=""radio"" id=""option1"" name=""choice"" value=""Option1"" checked>
+        <label for=""option1"">Option 1</label>
+        <input type=""radio"" id=""option2"" name=""choice"" value=""Option2"">
+        <label for=""option2"">Option 2</label>
+        <br><br>
+
+        <label for=""comments"">Comments:</label><br>
+        <textarea id=""comments"" name=""comments"" rows=""4"" cols=""50"" placeholder=""Your comments...""></textarea>
+        <br><br>
+
+        <button type=""submit"">Submit</button>
+        <input type=""reset"" value=""Reset Form"">
+      </form>
+    </article>
+
+    <!-- ADDITIONAL SECTION -->
+    <section id=""section2"">
+      <!-- 
+        <section> defines a standalone section in a document, typically with a title.
+      -->
+      <h2>Section Heading</h2>
+      <p>
+        Here is some text inside a section. 
+        You can also display a <code>&lt;code&gt; snippet</code> for inline code examples.
+      </p>
+
+      <!-- TABLE EXAMPLE -->
+      <table border=""1"">
+        <!-- 
+          <table> creates a table; border=""1"" is a simple way to visualize borders for example.
+        -->
+        <caption>Example Table</caption>
+        <!-- 
+          <caption> is a brief description of the table.
+        -->
+        <thead>
+          <tr>
+            <th>Header 1</th>
+            <th>Header 2</th>
+            <th>Header 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Data 1.1</td>
+            <td>Data 1.2</td>
+            <td>Data 1.3</td>
+          </tr>
+          <tr>
+            <td>Data 2.1</td>
+            <td>Data 2.2</td>
+            <td>Data 2.3</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan=""3"">Table Footer</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- LIST EXAMPLES -->
+      <h3>Unordered List</h3>
+      <ul>
+        <li>Item A</li>
+        <li>Item B</li>
+        <li>Item C
+          <ul>
+            <li>Sub-item C1</li>
+            <li>Sub-item C2</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>Ordered List</h3>
+      <ol>
+        <li>Step 1</li>
+        <li>Step 2</li>
+        <li>Step 3</li>
+      </ol>
+
+      <!-- DETAILS & SUMMARY EXAMPLE -->
+      <details>
+        <summary>Additional Information</summary>
+        <p>
+          This text is revealed when the details element is expanded.
+        </p>
+      </details>
+
+      <!-- PROGRESS EXAMPLE -->
+      <p>Progress Example:</p>
+      <progress value=""70"" max=""100""></progress>
+
+      <!-- METER EXAMPLE -->
+      <p>Disk Usage Meter:</p>
+      <meter value=""0.7"" min=""0"" max=""1"">70%</meter>
+      <!-- 
+        <meter> is used to indicate a scalar measurement within a known range.
+      -->
+
+      <!-- SUP & SUB EXAMPLE -->
+      <p>
+        Superscript example: 10<sup>2</sup> = 100.
+        Subscript example: H<sub>2</sub>O.
+      </p>
+
+      <!-- RUBY EXAMPLE -->
+      <p>
+        Ruby example for East Asian typography:
+        <ruby>
+          漢 <rt>hàn</rt>
+          字 <rt>zì</rt>
+        </ruby>
+      </p>
+
+      <!-- CANVAS EXAMPLE -->
+      <canvas id=""myCanvas"" width=""200"" height=""100"" style=""border:1px solid #000000;"">
+        Your browser does not support the HTML canvas tag.
+      </canvas>
+
+      <!-- BASIC INLINE JAVASCRIPT EXAMPLE -->
+      <script>
+        // This script draws a simple rectangle on the canvas.
+        const canvas = document.getElementById(""myCanvas"");
+        if (canvas && canvas.getContext) {
+          const ctx = canvas.getContext(""2d"");
+          ctx.fillStyle = ""#FF0000"";
+          ctx.fillRect(20, 20, 100, 50);
+        }
+      </script>
+    </section>
+  </main>
+
+  <!-- ASIDE EXAMPLE -->
+  <aside>
+    <!-- 
+      <aside> contains content indirectly related to the main content.
+    -->
+    <h3>Side Note</h3>
+    <p>
+      This is an aside content block, often used for side notes or advertisements.
+    </p>
+  </aside>
+
+  <!-- FOOTER SECTION -->
+  <footer>
+    <!-- 
+      <footer> usually contains page footer information such as author, copyright, etc.
+    -->
+    <p>&copy; 2025 My Example Website. All rights reserved.</p>
+    <small>Last updated on <time datetime=""2025-02-23"">February 23, 2025</time>.</small>
+    <!-- 
+      <time> tag is used to represent a specific time, date, or both.
+    -->
+  </footer>
+
+  <!-- NOSCRIPT EXAMPLE -->
+  <noscript>
+    <!-- 
+      <noscript> content is shown if scripts are disabled in the browser.
+    -->
+    <p>Your browser does not support JavaScript or it is disabled.</p>
+  </noscript>
+
+  <!-- OPTIONAL LINK TAG EXAMPLE FOR EXTERNAL RESOURCES 
+       (Uncomment if you want to attach an external CSS file)
+  <link rel=""stylesheet"" href=""styles/main.css"">
+  -->
+</body>
+</html>
+",chatgpt
+HTML,"<!-- 
+  This is an extended HTML5 file showcasing a diverse set of features, 
+  including more advanced or specific usages. All comments are in English.
+  You can use or adapt this document for your projects or data analysis. 
+-->
+
+<!DOCTYPE html>
+<html lang=""en"" dir=""ltr"" itemscope itemtype=""https://schema.org/WebPage"">
+<!-- 
+  itemscope itemtype=""https://schema.org/WebPage"" 
+    - Example of using Schema.org microdata to describe this page as a ""WebPage"".
+  lang=""en"" 
+    - Specifies the language of the document as English.
+  dir=""ltr"" 
+    - Indicates a left-to-right reading direction.
+-->
+
+<head>
+  <meta charset=""UTF-8"">
+  <!-- Specifies UTF-8 character encoding. -->
+
+  <meta http-equiv=""X-UA-Compatible"" content=""IE=edge"">
+  <!-- Allows Internet Explorer to use the latest rendering engine. -->
+
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+  <!-- Ensures the page is responsive on mobile devices. -->
+
+  <meta name=""description"" content=""An extended HTML example with advanced tags and attributes."">
+  <meta name=""author"" content=""Your Name or Organization"">
+  <!-- Additional meta tags for description and author. -->
+
+  <meta name=""theme-color"" content=""#ffffff"">
+  <!-- Used by some browsers to set the theme color of the page (often for mobile Chrome UI). -->
+
+  <link rel=""shortcut icon"" href=""images/favicon.ico"" type=""image/x-icon"">
+  <!-- Favicon for the browser tab. -->
+
+  <link rel=""apple-touch-icon"" href=""images/apple-touch-icon.png"">
+  <!-- Custom icon for Apple devices. -->
+
+  <link rel=""manifest"" href=""manifest.json"">
+  <!-- For Progressive Web App configuration (PWA). -->
+
+  <title>Extended HTML Example with Advanced Features</title>
+  <!-- Title of the document displayed in the browser tab. -->
+
+  <style>
+    /* 
+      Basic internal CSS to style various elements.
+      We keep it short and relevant to highlight some advanced tags.
+    */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+      background-color: #f8f8f8;
+    }
+
+    header, main, nav, aside, section, article, footer {
+      padding: 1rem;
+      margin: 1rem;
+      background: #fff;
+      border: 1px solid #ddd;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    .highlight {
+      background-color: #ffeeba;
+    }
+
+    /* ARIA example: style element with role=""navigation"" specifically */
+    [role=""navigation""] {
+      background-color: #e7f3fe;
+    }
+
+    /* 
+      Example for <dialog>. We ensure it's centered when open 
+      with a bit of custom CSS.
+    */
+    dialog {
+      border: 2px solid #444;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+  </style>
+</head>
+
+<body itemprop=""mainContentOfPage"">
+  <!-- 
+    itemprop=""mainContentOfPage"" 
+      - Additional microdata annotation from schema.org
+  -->
+
+  <!-- HEADER SECTION -->
+  <header>
+    <h1 itemprop=""headline"">Extended HTML Example with Advanced Features</h1>
+    <!-- 
+      itemprop=""headline"" for microdata indicating the headline of the page.
+    -->
+
+    <p>
+      <bdi>Tip:</bdi> This file includes usage of advanced HTML elements, microdata, 
+      ARIA attributes, and more. Explore the comments in the code to learn about each feature.
+    </p>
+    <!-- 
+      <bdi> (bi-directional isolation) is used to isolate a segment of text 
+      that might have a different directionality from its surroundings.
+    -->
+  </header>
+
+  <!-- NAVIGATION (With ARIA attribute) -->
+  <nav role=""navigation"" aria-label=""Main Navigation"">
+    <!-- 
+      role=""navigation"" to help screen readers identify this section as navigation.
+      aria-label defines an accessible name for this navigation.
+    -->
+    <ul>
+      <li><a href=""#advanced-media"">Advanced Media</a></li>
+      <li><a href=""#microdata"">Microdata Section</a></li>
+      <li><a href=""#dialog"">Dialog Tag</a></li>
+      <li><a href=""#image-map"">Image Map</a></li>
+      <li><a href=""#template"">Template Tag</a></li>
+      <li><a href=""#forms"">Advanced Form Inputs</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <!-- ADVANCED MEDIA SECTION -->
+    <section id=""advanced-media"">
+      <h2>Advanced Media Usage</h2>
+      <p>
+        Below is an example of a responsive image setup using the <code>&lt;picture&gt;</code> tag 
+        combined with <code>srcset</code> and <code>sizes</code> attributes to provide 
+        different image sources for different device widths.
+      </p>
+
+      <picture>
+        <!-- 
+          <picture> allows specifying multiple sources for responsive images or different file formats.
+        -->
+        <source
+          srcset=""images/example-small.jpg 480w, images/example-medium.jpg 800w, images/example-large.jpg 1200w""
+          sizes=""(max-width: 600px) 480px, (max-width: 1024px) 800px, 1200px""
+          type=""image/jpeg""
+        />
+        <img src=""images/example-large.jpg"" alt=""A responsive image example"" width=""300"">
+        <!-- 
+          The <img> inside <picture> is the fallback if none of the <source> tags match.
+        -->
+      </picture>
+
+      <p>
+        Next is a demonstration of <strong>audio with custom controls</strong> using HTML + JavaScript.
+      </p>
+
+      <audio id=""customAudio"" src=""media/audio-sample.mp3"" preload=""auto""></audio>
+      <!-- 
+        Plain <audio> element without the 'controls' attribute.
+        We will provide custom controls via JavaScript.
+      -->
+
+      <div>
+        <button type=""button"" onclick=""document.getElementById('customAudio').play()"">Play</button>
+        <button type=""button"" onclick=""document.getElementById('customAudio').pause()"">Pause</button>
+      </div>
+
+      <p>
+        The <code>&lt;video&gt;</code> example below demonstrates the use of 
+        poster image and a caption track. 
+      </p>
+
+      <video width=""320"" height=""240"" controls poster=""images/video-poster.jpg"">
+        <source src=""media/example-video.mp4"" type=""video/mp4"">
+        <!-- Example of closed-caption track -->
+        <track src=""media/captions.vtt"" kind=""captions"" srclang=""en"" label=""English"">
+        Your browser does not support the video tag.
+      </video>
+    </section>
+
+    <!-- MICRODATA SECTION -->
+    <section id=""microdata"" itemscope itemtype=""https://schema.org/Person"">
+      <!-- 
+        We are specifying microdata that describes a Person according to schema.org.
+      -->
+      <h2>Microdata Example</h2>
+      <p>
+        <strong>Name:</strong> <span itemprop=""name"">Jane Doe</span><br>
+        <strong>Job Title:</strong> <span itemprop=""jobTitle"">Software Engineer</span><br>
+        <strong>Email:</strong> <a href=""mailto:jane.doe@example.com"" itemprop=""email"">jane.doe@example.com</a><br>
+        <strong>Website:</strong> <a href=""https://example.com"" itemprop=""url"">example.com</a>
+      </p>
+      <p itemprop=""description"">
+        Jane Doe is an experienced software engineer with expertise in web development 
+        and advanced application architecture.
+      </p>
+    </section>
+
+    <!-- DIALOG SECTION -->
+    <section id=""dialog"">
+      <h2>Dialog Element</h2>
+      <p>
+        Below is a <code>&lt;dialog&gt;</code> element which can be used to create 
+        a native modal or non-modal dialog in HTML. It can be shown or hidden 
+        via JavaScript. 
+      </p>
+      <button type=""button"" onclick=""document.getElementById('infoDialog').showModal()"">Open Dialog</button>
+
+      <dialog id=""infoDialog"">
+        <form method=""dialog"">
+          <p>Dialog content goes here, such as an alert or prompt.</p>
+          <menu>
+            <!-- 
+              <menu> inside a dialog is an optional semantic container 
+              for action buttons in the dialog.
+            -->
+            <button value=""confirm"">OK</button>
+            <button value=""cancel"">Cancel</button>
+          </menu>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- IMAGE MAP SECTION -->
+    <section id=""image-map"">
+      <h2>Image Map Example</h2>
+      <p>
+        An <code>image map</code> allows multiple clickable areas on a single image, 
+        each directing the user to a different link or performing different actions.
+      </p>
+      <img src=""images/world-map.jpg"" alt=""World Map"" usemap=""#worldMap"" width=""600"" height=""400"">
+      <map name=""worldMap"">
+        <!-- 
+          The map is defined by <map> with a ""name"" that corresponds to the ""usemap"" attribute on the <img>.
+        -->
+        <area shape=""rect"" coords=""50,50,150,150"" href=""https://example.com/north-america"" alt=""North America"">
+        <area shape=""circle"" coords=""300,200,50"" href=""https://example.com/south-america"" alt=""South America"">
+        <area shape=""poly"" coords=""400,50,550,80,540,180,420,210"" href=""https://example.com/africa"" alt=""Africa"">
+      </map>
+    </section>
+
+    <!-- TEMPLATE TAG SECTION -->
+    <section id=""template"">
+      <h2>Template Tag Example</h2>
+      <p>
+        The <code>&lt;template&gt;</code> element holds content that is not rendered 
+        until activated via JavaScript.
+      </p>
+
+      <!-- Hidden template definition -->
+      <template id=""cardTemplate"">
+        <article class=""highlight"" style=""border:2px solid #ccc; margin: 0.5rem 0;"">
+          <h3>Template Title</h3>
+          <p>This content was cloned from a template!</p>
+        </article>
+      </template>
+
+      <button type=""button"" onclick=""addTemplateContent()"">Add Template Content</button>
+      <div id=""templateContainer""></div>
+
+      <script>
+        function addTemplateContent() {
+          const template = document.getElementById('cardTemplate');
+          const container = document.getElementById('templateContainer');
+
+          // Clone the template content and append it to the container
+          const clone = document.importNode(template.content, true);
+          container.appendChild(clone);
+        }
+      </script>
+    </section>
+
+    <!-- ADVANCED FORMS SECTION -->
+    <section id=""forms"">
+      <h2>Advanced Form Inputs</h2>
+      <p>
+        Below are examples of newer input types and attributes:
+      </p>
+
+      <form action=""#"" method=""post"">
+        <label for=""emailInput"">Email:</label>
+        <input type=""email"" id=""emailInput"" name=""emailInput"" placeholder=""username@example.com"" required>
+        <!-- HTML5 email type with validation and placeholder. -->
+        <br><br>
+
+        <label for=""searchInput"">Search:</label>
+        <input type=""search"" id=""searchInput"" name=""searchInput"" placeholder=""Type to search..."">
+        <!-- HTML5 search input. -->
+        <br><br>
+
+        <label for=""urlInput"">Website:</label>
+        <input type=""url"" id=""urlInput"" name=""urlInput"" placeholder=""https://example.com"" pattern=""https?://.+"">
+        <!-- HTML5 url type with pattern for basic URL validation. -->
+        <br><br>
+
+        <label for=""rangeInput"">Volume (range input):</label>
+        <input type=""range"" id=""rangeInput"" name=""volume"" min=""0"" max=""100"" step=""5"" value=""50"">
+        <br><br>
+
+        <label for=""dateInput"">Birthday (date input):</label>
+        <input type=""date"" id=""dateInput"" name=""dateInput"">
+        <!-- HTML5 date picker. -->
+        <br><br>
+
+        <label for=""datetimeInput"">Appointment (datetime-local):</label>
+        <input type=""datetime-local"" id=""datetimeInput"" name=""datetimeInput"">
+        <!-- HTML5 combined date+time picker. -->
+        <br><br>
+
+        <label for=""fileInput"">Upload File:</label>
+        <input type=""file"" id=""fileInput"" name=""fileInput"" accept="".jpg, .png, .pdf"">
+        <!-- Restrict accepted file types. -->
+        <br><br>
+
+        <label for=""numberInput"">Enter a Number (1-10):</label>
+        <input type=""number"" id=""numberInput"" name=""numberInput"" min=""1"" max=""10"" value=""5"">
+        <br><br>
+
+        <button type=""submit"">Submit</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ASIDE SECTION -->
+  <aside aria-labelledby=""aside-heading"" aria-describedby=""aside-desc"">
+    <!-- 
+      aria-labelledby references an element that labels this region 
+      aria-describedby references an element that provides more details about this region
+    -->
+    <h2 id=""aside-heading"">Side Note</h2>
+    <p id=""aside-desc"">
+      This aside section can contain additional information or advertisements 
+      related to the main content.
+    </p>
+  </aside>
+
+  <!-- FOOTER SECTION -->
+  <footer>
+    <p>&copy; 2025 Extended Example Website. All rights reserved.</p>
+    <p>
+      Created by <span itemprop=""author"">Your Name or Organization</span>.
+    </p>
+    <small>Last updated on <time datetime=""2025-02-23"">February 23, 2025</time>.</small>
+  </footer>
+
+  <!-- NOSCRIPT SECTION -->
+  <noscript>
+    <!-- 
+      <noscript> content is displayed only if the user has disabled JavaScript. 
+    -->
+    <p>Your browser does not support JavaScript or it is disabled.</p>
+  </noscript>
+
+  <!-- OPTIONAL EXTERNAL SCRIPT EXAMPLE 
+       Uncomment if you want to link an external JS file
+  <script src=""scripts/app.js""></script>
+  -->
+</body>
+</html>
+",chatgpt
+JavaScript,"/*
+File: server.js
+This code sets up a simple REST API using Express.js. It defines two routes:
+1. GET / - returns a welcome message
+2. GET /users - returns a static list of users
+Usage:
+    npm install express
+    node server.js
+Example Output:
+    Server listening on port 3000
+    (Visiting http://localhost:3000/ in a browser displays ""Welcome to our API!"")
+*/
+
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+/**
+ * GET / - Root endpoint.
+ * Sends a simple welcome message.
+ */
+app.get('/', (req, res) => {
+  res.send('Welcome to our API!');
+});
+
+/**
+ * GET /users - Returns a static JSON list of users.
+ */
+app.get('/users', (req, res) => {
+  const users = [
+    { id: 1, name: 'Alice', age: 29 },
+    { id: 2, name: 'Bob', age: 34 },
+    { id: 3, name: 'Charlie', age: 25 },
+  ];
+  res.json(users);
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
+",chatgpt
+PHP,"<?php
+/**
+ * File: read_csv.php
+ * This PHP script reads data from a CSV file and prints it in a tabular format.
+ * Usage:
+ *   php read_csv.php
+ * Example Output:
+ *   Reading sample.csv:
+ *   John,30
+ *   Alice,25
+ */
+
+// Path to your CSV file
+$csvFile = __DIR__ . '/sample.csv';
+
+/**
+ * Reads a CSV file and returns an array of rows (each row is an array of fields).
+ *
+ * @param string $filename Path to the CSV file.
+ * @return array An array of rows from the CSV.
+ */
+function readCsv($filename) {
+    $rows = array();
+    if (($handle = fopen($filename, 'r')) !== false) {
+        while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+            $rows[] = $data;
+        }
+        fclose($handle);
+    }
+    return $rows;
+}
+
+// Example usage
+echo ""Reading sample.csv:\n"";
+$csvData = readCsv($csvFile);
+foreach ($csvData as $row) {
+    echo implode("","", $row) . ""\n"";
+}
+",chatgpt
