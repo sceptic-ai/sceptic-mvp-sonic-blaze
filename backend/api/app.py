@@ -78,6 +78,11 @@ class AnalysisResponse(BaseModel):
     blockchain_tx: Optional[str] = None
     explorer_url: Optional[str] = None
 
+class ContractUpdateRequest(BaseModel):
+    contract_address: str
+    project_name: str
+    tx_hash: str
+
 # Global değişkenler
 model = None
 tokenizer = None
@@ -300,12 +305,12 @@ async def publish_dataset(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/contract-update")
-async def update_contract_info(request: dict):
+async def update_contract_info(request: ContractUpdateRequest):
     """Update contract information based on blockchain transactions"""
     try:
-        contract_address = request.get("contract_address")
-        project_name = request.get("project_name")
-        tx_hash = request.get("tx_hash")
+        contract_address = request.contract_address
+        project_name = request.project_name
+        tx_hash = request.tx_hash
         
         if not all([contract_address, project_name, tx_hash]):
             raise HTTPException(status_code=400, detail="Missing required parameters")
