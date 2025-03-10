@@ -420,3 +420,20 @@ export const updateContractProjectName = async (
     throw error;
   }
 };
+
+export interface ContractUpdate {
+  contract_address: string;
+  project_name: string;
+  tx_hash: string;
+  timestamp: string;
+}
+
+export const getContractUpdates = async (): Promise<ContractUpdate[]> => {
+  try {
+    const response = await api.get('/api/contract-updates');
+    return response.data.updates;
+  } catch (error) {
+    console.error('Error fetching contract updates:', error);
+    return [];
+  }
+};

@@ -354,6 +354,27 @@ async def update_contract_info(request: ContractUpdateRequest):
         logging.error(f"Error updating contract info: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/contract-updates")
+async def get_contract_updates():
+    """Get a list of recent contract updates"""
+    try:
+        contract_updates_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'contract_updates.json')
+        
+        if not os.path.exists(contract_updates_file):
+            return {"updates": []}
+            
+        with open(contract_updates_file, 'r') as f:
+            updates = json.load(f)
+            
+        # Sort by timestamp, most recent first
+        updates.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return {"updates": updates}
+        
+    except Exception as e:
+        logging.error(f"Error retrieving contract updates: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def process_github_analysis(analysis_id: str, request: GithubAnalysisRequest):
     """GitHub analizini arka planda işleme"""
     blockchain_tx = None
