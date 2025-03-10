@@ -6,10 +6,14 @@ import aiofiles
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, HttpUrl
 from datetime import datetime
 import asyncio
 from dotenv import load_dotenv
+import time
+import functools
+from backend.ml.model import predict_code, parse_github_url, fetch_github_code, load_model, analyze_github_repo
+from backend.utils.setup import setup_directories
 
 # Blockchain modülünü import etme
 try:
@@ -45,11 +49,20 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("api.log")
+        logging.FileHandler(os.path.join(os.path.dirname(__file__), '../logs/api.log'))
     ]
 )
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Sceptic AI API", description="AI Code Analysis & Blockchain Verification API")
+# Simple in-memory cache for recent analysis results
+analysis_cache = {}
+MAX_CACHE_SIZE = 100
+
+app = FastAPI(
+    title="Sceptic AI API",
+    description="API for the Sceptic AI code analysis tool",
+    version="1.0.0"
+)
 
 # CORS ayarları
 app.add_middleware(
@@ -61,27 +74,30 @@ app.add_middleware(
 )
 
 # Modelleri tanımlama
-class GithubAnalysisRequest(BaseModel):
-    repo_url: str
-    branch: Optional[str] = "main"
-    file_path: Optional[str] = None
-
 class CodeAnalysisRequest(BaseModel):
-    code: str
+    code: str = Field(..., description="Source code to analyze")
+    language: Optional[str] = Field(None, description="Programming language of the code")
+
+class GitHubAnalysisRequest(BaseModel):
+    url: HttpUrl = Field(..., description="GitHub repository URL to analyze")
+    max_files: Optional[int] = Field(10, description="Maximum number of files to analyze")
 
 class AnalysisResponse(BaseModel):
-    id: str
-    repo_url: Optional[str] = None
-    timestamp: str
+    request_id: str
     status: str
     result: Optional[Dict[str, Any]] = None
-    blockchain_tx: Optional[str] = None
-    explorer_url: Optional[str] = None
+    error: Optional[str] = None
+    cached: bool = False
+    processing_time_ms: int = 0
 
 class ContractUpdateRequest(BaseModel):
-    contract_address: str
-    project_name: str
-    tx_hash: str
+    address: str = Field(..., description="Contract address")
+    contract_type: str = Field(..., description="Type of contract (audit, token, etc.)")
+    network: str = Field(..., description="Network the contract is deployed on")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of update")
+    transaction_hash: Optional[str] = Field(None, description="Transaction hash of deployment")
+    deployer: Optional[str] = Field(None, description="Address of contract deployer")
+    verified: Optional[bool] = Field(False, description="Whether the contract is verified")
 
 # Global değişkenler
 model = None
@@ -92,14 +108,19 @@ scaler = None
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'analysis_results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+# Storage for analysis results
+analysis_results = {}
+
+# Directory to store contract updates
+CONTRACT_UPDATES_DIR = os.path.join(os.path.dirname(__file__), "../data/contract_updates")
+
 @app.on_event("startup")
 async def startup_event():
     """Uygulama başladığında ML modelini yükle ve blockchain bağlantısını kontrol et"""
     global model, tokenizer, scaler
     
     # Set up necessary directories
-    from backend.api.setup import setup_backend_directories
-    setup_backend_directories()
+    setup_directories()
     
     try:
         model, tokenizer, scaler = load_model()
@@ -115,362 +136,238 @@ async def startup_event():
         logging.error(f"Startup error: {str(e)}")
 
 @app.get("/")
-def read_root():
-    """Kök endpoint"""
-    return {"message": "Welcome to Sceptic AI API - Code Analysis Platform"}
+async def root():
+    return {"message": "Welcome to Sceptic AI API", "status": "active"}
+
+@app.post("/analyze", response_model=AnalysisResponse)
+async def analyze_code(request: CodeAnalysisRequest, background_tasks: BackgroundTasks):
+    request_id = generate_request_id()
+    
+    # Check if code is too short
+    if len(request.code) < 10:
+        return AnalysisResponse(
+            request_id=request_id,
+            status="error",
+            error="Code sample too short for analysis"
+        )
+    
+    # Check if code is too long
+    if len(request.code) > 50000:
+        return AnalysisResponse(
+            request_id=request_id,
+            status="error",
+            error="Code sample too large (max 50,000 characters)"
+        )
+        
+    # Log request details
+    logger.info(f"Code analysis request received: {request_id} (length: {len(request.code)} chars)")
+    
+    # Create initial response entry
+    analysis_results[request_id] = {"status": "processing"}
+    
+    # Start background task for longer analysis
+    if len(request.code) > 5000:
+        background_tasks.add_task(analyze_code_task, request_id, request.code, request.language)
+        return AnalysisResponse(
+            request_id=request_id,
+            status="processing"
+        )
+    
+    # For smaller code samples, analyze directly
+    try:
+        start_time = time.time()
+        result = predict_code(request.code)
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        logger.info(f"Analysis completed for {request_id} in {processing_time}ms")
+        
+        return AnalysisResponse(
+            request_id=request_id,
+            status="completed",
+            result=result,
+            processing_time_ms=processing_time
+        )
+        
+    except Exception as e:
+        logger.error(f"Error analyzing code: {str(e)}")
+        return AnalysisResponse(
+            request_id=request_id,
+            status="error",
+            error=str(e)
+        )
 
 @app.post("/analyze/github", response_model=AnalysisResponse)
-async def analyze_github_repo(request: GithubAnalysisRequest, background_tasks: BackgroundTasks):
-    """GitHub repository analiz etme endpoint'i"""
-    try:
-        # Benzersiz ID oluştur
-        analysis_id = f"analysis_{uuid.uuid4().hex}"
-        
-        # Asenkron işlem başlat
-        background_tasks.add_task(process_github_analysis, analysis_id, request)
-        
-        # Hemen bir yanıt döndür
-        return {
-            "id": analysis_id,
-            "repo_url": request.repo_url,
-            "timestamp": datetime.now().isoformat(),
-            "status": "pending",
-            "result": None,
-            "blockchain_tx": None,
-            "explorer_url": None
-        }
-    except Exception as e:
-        logging.error(f"GitHub analizi başlatma hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/analyze/code", response_model=Dict[str, Any])
-async def analyze_code(request: CodeAnalysisRequest):
-    """Doğrudan kod analiz endpoint'i"""
-    try:
-        # Kodu analiz et
-        result = predict_code(request.code, model, tokenizer, scaler)
-        return result
-    except Exception as e:
-        logging.error(f"Kod analiz hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/analysis/{analysis_id}", response_model=AnalysisResponse)
-async def get_analysis(analysis_id: str):
-    """Belirli bir analiz sonucunu getirme endpoint'i"""
-    try:
-        # Analiz dosyasının yolunu belirle
-        analysis_file = os.path.join(RESULTS_DIR, f"{analysis_id}.json")
-        
-        if not os.path.exists(analysis_file):
-            # Blockchain'den kontrol et
-            blockchain_data = get_analysis_from_chain(analysis_id)
-            if blockchain_data:
-                # Sadece temel bilgileri döndür, tam analiz sonucu blockchain'de hashlenerek saklanıyor
-                return {
-                    "id": analysis_id,
-                    "repo_url": "Unknown (Only hash stored on blockchain)",
-                    "timestamp": datetime.fromtimestamp(blockchain_data.get("timestamp", 0)).isoformat(),
-                    "status": "completed",
-                    "result": {
-                        "risk_score": blockchain_data.get("risk_score", 0)
-                    },
-                    "blockchain_tx": True,
-                    "explorer_url": f"{blockchain_data.get('explorer_base', '')}/address/{blockchain_data.get('auditor', '')}"
-                }
-            
-            raise HTTPException(status_code=404, detail=f"Analysis with ID {analysis_id} not found")
-        
-        # Dosyadan analiz sonucunu oku
-        with open(analysis_file, 'r') as f:
-            analysis_data = json.load(f)
-            
-        return analysis_data
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        logging.error(f"Analiz getirme hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/analyses", response_model=List[AnalysisResponse])
-async def list_analyses():
-    """Tüm analizleri listeler"""
-    try:
-        analyses = []
-        for filename in os.listdir(RESULTS_DIR):
-            if filename.endswith('.json'):
-                with open(os.path.join(RESULTS_DIR, filename), 'r') as f:
-                    analysis = json.load(f)
-                    analyses.append(analysis)
-        
-        # Tarihe göre sırala, en yeni en üstte
-        analyses.sort(key=lambda x: x["timestamp"], reverse=True)
-        return analyses
-    except Exception as e:
-        logging.error(f"Analizleri listeleme hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/contract-info")
-async def get_contract_info():
-    """Get contract information for the UI"""
-    return {
-        "contracts": {
-            "sceptic_simple": {
-                "address": os.getenv("VITE_CONTRACT_ADDRESS"),
-                "name": "ScepticSimple",
-                "description": "Simple contract for testing"
-            },
-            "sceptic_token": {
-                "address": os.getenv("TOKEN_CONTRACT_ADDRESS"),
-                "name": "ScepticToken",
-                "description": "SCEP governance token"
-            },
-            "sceptic_audit": {
-                "address": os.getenv("AUDIT_CONTRACT_ADDRESS"),
-                "name": "ScepticAudit",
-                "description": "Main contract for storing audit results"
-            }
-        },
-        "network": {
-            "name": "Sonic Network",
-            "chainId": "57054" if os.getenv("NETWORK_TYPE", "testnet") == "testnet" else "146",
-            "rpcUrl": os.getenv("SONIC_TESTNET_RPC", "https://rpc.blaze.soniclabs.com") 
-                      if os.getenv("NETWORK_TYPE", "testnet") == "testnet" 
-                      else os.getenv("SONIC_MAINNET_RPC", "https://mainnet.sonic.fantom.network/")
-        }
-    }
-
-@app.post("/datasets/publish")
-async def publish_dataset(
-    name: str = Form(...),
-    description: str = Form(...),
-    category: str = Form(...),
-    file: UploadFile = File(...),
-    is_public: bool = Form(False)
-):
-    """Yeni veri seti yükleme endpoint'i"""
-    try:
-        # Benzersiz bir ID oluştur
-        dataset_id = f"dataset_{uuid.uuid4().hex}"
-        
-        # Dosyayı kaydet
-        upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        file_path = os.path.join(upload_dir, f"{dataset_id}_{file.filename}")
-        
-        # Asenkron dosya yazma
-        async with aiofiles.open(file_path, 'wb') as out_file:
-            content = await file.read()
-            await out_file.write(content)
-        
-        # Metadata oluştur
-        metadata = {
-            "id": dataset_id,
-            "name": name,
-            "description": description,
-            "category": category,
-            "filename": file.filename,
-            "size": len(content),
-            "is_public": is_public,
-            "uploaded_at": datetime.now().isoformat(),
-            "file_path": file_path
-        }
-        
-        # Veritabanına kaydet (Gerçek projede MongoDB veya SQL veritabanı kullanılabilir)
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db")
-        os.makedirs(db_path, exist_ok=True)
-        
-        datasets_file = os.path.join(db_path, "datasets.json")
-        
-        datasets = []
-        if os.path.exists(datasets_file):
-            try:
-                with open(datasets_file, 'r') as f:
-                    datasets = json.load(f)
-            except json.JSONDecodeError:
-                datasets = []
-        
-        datasets.append(metadata)
-        
-        with open(datasets_file, 'w') as f:
-            json.dump(datasets, f, indent=2)
-        
-        return {
-            "success": True,
-            "datasetId": dataset_id,
-            "name": name,
-            "description": description,
-            "fileSize": len(content),
-            "uploadDate": metadata["uploaded_at"]
-        }
-    except Exception as e:
-        logging.error(f"Veri seti yükleme hatası: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/contract-update")
-async def update_contract_info(request: ContractUpdateRequest):
-    """Update contract information based on blockchain transactions"""
-    try:
-        contract_address = request.contract_address
-        project_name = request.project_name
-        tx_hash = request.tx_hash
-        
-        if not all([contract_address, project_name, tx_hash]):
-            raise HTTPException(status_code=400, detail="Missing required parameters")
-        
-        # Here you would typically verify the transaction on the blockchain
-        # and update your database with the new project name
-        
-        # For this demo, we'll just log the update
-        logging.info(f"Contract {contract_address} updated: project_name={project_name}, tx={tx_hash}")
-        
-        # Optional: Store this information in a database or file
-        # This is just a simple example - in a real app, use a proper database
-        contract_updates_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'contract_updates.json')
-        
-        try:
-            if os.path.exists(contract_updates_file):
-                with open(contract_updates_file, 'r') as f:
-                    updates = json.load(f)
-            else:
-                updates = []
-                
-            updates.append({
-                "contract_address": contract_address,
-                "project_name": project_name,
-                "tx_hash": tx_hash,
-                "timestamp": datetime.now().isoformat()
-            })
-            
-            with open(contract_updates_file, 'w') as f:
-                json.dump(updates, f, indent=2)
-                
-        except Exception as e:
-            logging.error(f"Error saving contract update: {str(e)}")
-        
-        return {
-            "success": True,
-            "message": "Contract information updated successfully"
-        }
-        
-    except Exception as e:
-        logging.error(f"Error updating contract info: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/contract-updates")
-async def get_contract_updates():
-    """Get a list of recent contract updates"""
-    try:
-        contract_updates_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'contract_updates.json')
-        
-        if not os.path.exists(contract_updates_file):
-            return {"updates": []}
-            
-        with open(contract_updates_file, 'r') as f:
-            updates = json.load(f)
-            
-        # Sort by timestamp, most recent first
-        updates.sort(key=lambda x: x["timestamp"], reverse=True)
-        
-        return {"updates": updates}
-        
-    except Exception as e:
-        logging.error(f"Error retrieving contract updates: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def process_github_analysis(analysis_id: str, request: GithubAnalysisRequest):
-    """GitHub analizini arka planda işleme"""
-    blockchain_tx = None
-    explorer_url = None
+@cache_result(ttl_seconds=3600)  # Cache GitHub analyses for 1 hour
+async def analyze_github(request: GitHubAnalysisRequest, background_tasks: BackgroundTasks):
+    request_id = generate_request_id()
     
+    # Log request details
+    logger.info(f"GitHub analysis request received: {request_id} for URL: {request.url}")
+    
+    # Start background task for GitHub analysis
+    background_tasks.add_task(analyze_github_task, request_id, str(request.url), request.max_files)
+    
+    # Create initial response
+    analysis_results[request_id] = {"status": "processing"}
+    
+    return AnalysisResponse(
+        request_id=request_id,
+        status="processing"
+    )
+
+@app.get("/analysis/{request_id}", response_model=AnalysisResponse)
+async def get_analysis_result(request_id: str):
+    if request_id not in analysis_results:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    
+    result = analysis_results[request_id]
+    
+    return AnalysisResponse(
+        request_id=request_id,
+        status=result["status"],
+        result=result.get("result"),
+        error=result.get("error"),
+        processing_time_ms=result.get("processing_time_ms", 0)
+    )
+
+@app.post("/contract/update")
+async def update_contract_info(request: ContractUpdateRequest):
+    """Update contract information in the system"""
     try:
-        # Başlangıç durumunu kaydet
-        analysis_data = {
-            "id": analysis_id,
-            "repo_url": request.repo_url,
-            "timestamp": datetime.now().isoformat(),
-            "status": "processing",
-            "result": None,
-            "blockchain_tx": None,
-            "explorer_url": None
-        }
+        # Create the directory if it doesn't exist
+        os.makedirs(CONTRACT_UPDATES_DIR, exist_ok=True)
         
-        analysis_file = os.path.join(RESULTS_DIR, f"{analysis_id}.json")
-        with open(analysis_file, 'w') as f:
-            json.dump(analysis_data, f)
+        # Generate a unique filename based on timestamp and contract
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"{timestamp}_{request.contract_type}_{request.network}.json"
         
-        # GitHub'dan kodu çek
-        repo_info = parse_github_url(request.repo_url)
-        if request.branch:
-            repo_info['branch'] = request.branch
-        if request.file_path:
-            repo_info['file_path'] = request.file_path
+        # Prepare the data to save
+        data = request.dict()
+        
+        # Save to file
+        file_path = os.path.join(CONTRACT_UPDATES_DIR, filename)
+        with open(file_path, 'w') as f:
+            json.dump(data, f, default=str)
             
-        logging.info(f"Fetching code from GitHub: {repo_info}")
-        code = fetch_github_code(repo_info)
+        # Log the update
+        logger.info(f"Contract info updated: {request.address} on {request.network}")
         
-        if not code:
-            # Hata durumu
-            analysis_data["status"] = "failed"
-            analysis_data["result"] = {"error": "Failed to fetch code from GitHub repository"}
-            
-            with open(analysis_file, 'w') as f:
-                json.dump(analysis_data, f)
-            return
-        
-        logging.info(f"Analyzing code for {analysis_id}")
-        # Kodu analiz et
-        result = predict_code(code, model, tokenizer, scaler)
-        
-        # Sonuçları güncelle
-        analysis_data["status"] = "completed"
-        analysis_data["result"] = result
-        
-        # Eğer risk skoru yüksekse (70+) veya AI içeriği tespit edildiyse blockchain'e kaydet
-        if (result.get("risk_score", 0) >= 70 or 
-            (result.get("prediction") == "AI" and result.get("confidence", 0) >= 0.8)):
-            
-            logging.info(f"High risk or AI content detected, storing on blockchain: {analysis_id}")
-            # Blockchain'e kaydet
-            blockchain_result = store_analysis_on_chain(analysis_data)
-            
-            if blockchain_result and blockchain_result.get("success"):
-                blockchain_tx = blockchain_result.get("transaction_hash")
-                explorer_url = blockchain_result.get("explorer_url")
-                
-                analysis_data["blockchain_tx"] = blockchain_tx
-                analysis_data["explorer_url"] = explorer_url
-                
-                logging.info(f"Analysis stored on blockchain: {blockchain_tx}")
-            else:
-                error = blockchain_result.get("error") if blockchain_result else "Unknown error"
-                logging.error(f"Failed to store analysis on blockchain: {error}")
-        
-        # Sonuçları kaydet
-        with open(analysis_file, 'w') as f:
-            json.dump(analysis_data, f)
-            
-        logging.info(f"Analysis completed for {analysis_id}")
+        return {"status": "success", "message": "Contract information updated"}
         
     except Exception as e:
-        logging.error(f"GitHub analiz işleme hatası: {str(e)}")
+        logger.error(f"Error updating contract info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update contract info: {str(e)}")
+
+@app.get("/contract/updates", response_model=List[Dict[str, Any]])
+async def get_contract_updates(limit: int = 10):
+    """Get recent contract updates"""
+    try:
+        updates = []
         
-        # Hata durumunu kaydet
-        try:
-            analysis_data = {
-                "id": analysis_id,
-                "repo_url": request.repo_url,
-                "timestamp": datetime.now().isoformat(),
-                "status": "failed",
-                "result": {"error": str(e)},
-                "blockchain_tx": blockchain_tx,
-                "explorer_url": explorer_url
+        # Check if directory exists
+        if not os.path.exists(CONTRACT_UPDATES_DIR):
+            return updates
+            
+        # List all JSON files in the directory
+        files = [f for f in os.listdir(CONTRACT_UPDATES_DIR) if f.endswith('.json')]
+        
+        # Sort files by name (which includes timestamp)
+        files.sort(reverse=True)
+        
+        # Load the most recent files
+        for filename in files[:limit]:
+            file_path = os.path.join(CONTRACT_UPDATES_DIR, filename)
+            with open(file_path, 'r') as f:
+                update = json.load(f)
+                updates.append(update)
+                
+        return updates
+        
+    except Exception as e:
+        logger.error(f"Error getting contract updates: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get contract updates: {str(e)}")
+
+# Simple request ID generator
+def generate_request_id():
+    return f"req_{int(time.time() * 1000)}"
+
+# Cache decorator for expensive operations
+def cache_result(ttl_seconds=3600):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Create a cache key from function name and arguments
+            key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+            
+            # Check if result is in cache and not expired
+            if key in analysis_cache:
+                entry = analysis_cache[key]
+                if time.time() - entry["timestamp"] < ttl_seconds:
+                    entry["result"]["cached"] = True
+                    return entry["result"]
+            
+            # Call the original function
+            result = await func(*args, **kwargs)
+            
+            # Store in cache
+            analysis_cache[key] = {
+                "timestamp": time.time(),
+                "result": result
             }
             
-            with open(analysis_file, 'w') as f:
-                json.dump(analysis_data, f)
-        except Exception as save_error:
-            logging.error(f"Hata durumu kaydedilemedi: {str(save_error)}")
+            # Limit cache size
+            if len(analysis_cache) > MAX_CACHE_SIZE:
+                # Remove oldest entry
+                oldest_key = min(analysis_cache.keys(), key=lambda k: analysis_cache[k]["timestamp"])
+                del analysis_cache[oldest_key]
+                
+            return result
+        return wrapper
+    return decorator
+
+# Background task for code analysis
+async def analyze_code_task(request_id: str, code: str, language: Optional[str] = None):
+    try:
+        start_time = time.time()
+        
+        # Perform code analysis
+        result = predict_code(code)
+        
+        # Store results
+        analysis_results[request_id] = {
+            "status": "completed",
+            "result": result,
+            "processing_time_ms": int((time.time() - start_time) * 1000)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing code: {str(e)}")
+        analysis_results[request_id] = {
+            "status": "error",
+            "error": str(e)
+        }
+
+# Background task for GitHub repository analysis
+async def analyze_github_task(request_id: str, url: str, max_files: int = 10):
+    try:
+        start_time = time.time()
+        
+        # Perform GitHub repository analysis
+        result = await analyze_github_repo(url)
+        
+        # Store results
+        analysis_results[request_id] = {
+            "status": "completed",
+            "result": result,
+            "processing_time_ms": int((time.time() - start_time) * 1000)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing GitHub repository: {str(e)}")
+        analysis_results[request_id] = {
+            "status": "error",
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True) 
