@@ -9,17 +9,20 @@ import json
 import random
 import os
 import logging
-from typing import Dict, Any, Tuple, List
+import time
+from typing import Dict, Any, Tuple, List, Optional, Union
+from functools import lru_cache
 
 # Model ve data sabitleri
-MAX_VOCAB_SIZE = 5000
-EMBEDDING_DIM = 64
-MAX_SEQUENCE_LENGTH = 100
+MAX_VOCAB_SIZE = 10000
+EMBEDDING_DIM = 128
+MAX_SEQUENCE_LENGTH = 150
 FEATURE_NAMES = [
     'num_lines', 'num_chars', 'num_spaces', 'num_tabs',
     'num_keywords', 'num_comments', 'num_functions',
     'num_classes', 'indentation_consistency', 'avg_line_length',
-    'cyclomatic_complexity', 'num_loops'
+    'cyclomatic_complexity', 'num_loops', 'variable_name_consistency',
+    'comment_to_code_ratio', 'max_line_length', 'avg_function_length'
 ]
 
 MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
@@ -28,9 +31,11 @@ TOKENIZER_PATH = os.path.join(MODEL_DIR, 'tokenizer.json')
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 
 def set_random_seed(seed_value=42):
+    """Set random seed for reproducibility"""
     random.seed(seed_value)
     np.random.seed(seed_value)
     tf.random.set_seed(seed_value)
+    os.environ['PYTHONHASHSEED'] = str(seed_value)
 
 def calculate_indentation_consistency(code):
     """Kod girintilerinin tutarlılığını hesaplar"""
@@ -59,21 +64,60 @@ def calculate_cyclomatic_complexity(code):
     decision_points = len(re.findall(r'\b(if|elif|else|for|while|and|or)\b', code))
     return decision_points + 1
 
+def calculate_naming_consistency(names):
+    """Calculate how consistent variable naming is"""
+    if not names or len(names) < 2:
+        return 1.0
+    
+    # Check for naming conventions
+    snake_case = [n for n in names if re.match(r'^[a-z][a-z0-9_]*$', n)]
+    camel_case = [n for n in names if re.match(r'^[a-z][a-zA-Z0-9]*$', n) and not re.match(r'^[a-z][a-z0-9_]*$', n)]
+    pascal_case = [n for n in names if re.match(r'^[A-Z][a-zA-Z0-9]*$', n)]
+    
+    # Calculate consistency as the ratio of the most common style
+    total = len(names)
+    max_style = max(len(snake_case), len(camel_case), len(pascal_case))
+    
+    return max_style / total if total > 0 else 1.0
+
 def extract_code_features(code):
-    """Kod metninden özellikleri çıkarır"""
+    """Extract comprehensive features from code for analysis"""
+    # Extract basic features
+    num_lines = code.count('\n') + 1
+    num_chars = len(code)
+    num_spaces = code.count(' ')
+    num_tabs = code.count('\t')
+    num_keywords = len(re.findall(r'\b(def|class|import|return|if|else|for|while|try|except|with|lambda|yield|async|await)\b', code))
+    num_comments = len(re.findall(r'#[^\n]|"""[\s\S]?"""|\'\'\'[\s\S]*?\'\'\'', code))
+    num_functions = len(re.findall(r'\bdef\b', code))
+    num_classes = len(re.findall(r'\bclass\b', code))
+    indentation_consistency = calculate_indentation_consistency(code)
+    avg_line_length = calculate_avg_line_length(code)
+    cyclomatic_complexity = calculate_cyclomatic_complexity(code)
+    num_loops = len(re.findall(r'\b(for|while)\b', code))
+    
+    # Advanced features
+    lines = [line for line in code.split('\n') if line.strip()]
+    max_line_length = max([len(line) for line in lines]) if lines else 0
+    
+    # Variable name consistency
+    var_names = re.findall(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=', code)
+    var_name_consistency = calculate_naming_consistency(var_names)
+    
+    # Comment to code ratio
+    comment_lines = len(re.findall(r'^\s*#.*$|^\s*""".*?"""\s*$|^\s*\'\'\'.*?\'\'\'\s*$', code, re.MULTILINE))
+    comment_to_code_ratio = comment_lines / num_lines if num_lines > 0 else 0
+    
+    # Average function length
+    function_bodies = re.findall(r'def\s+[^(]+\([^)]*\):\s*(?:\n\s+[^\n]+)+', code)
+    avg_function_length = np.mean([fb.count('\n') for fb in function_bodies]) if function_bodies else 0
+    
     return [
-        code.count("\n"),
-        len(code),
-        code.count(" "),
-        code.count("\t"),
-        len(re.findall(r'\b(def|class|import|return|if|else|for|while|try|except|with|lambda|yield|async|await)\b', code)),
-        len(re.findall(r'#[^\n]|"""[\s\S]?"""|\'\'\'[\s\S]*?\'\'\'', code)),
-        len(re.findall(r'\bdef\b', code)),
-        len(re.findall(r'\bclass\b', code)),
-        calculate_indentation_consistency(code),
-        calculate_avg_line_length(code),
-        calculate_cyclomatic_complexity(code),
-        len(re.findall(r'\b(for|while)\b', code))
+        num_lines, num_chars, num_spaces, num_tabs,
+        num_keywords, num_comments, num_functions,
+        num_classes, indentation_consistency, avg_line_length,
+        cyclomatic_complexity, num_loops, var_name_consistency,
+        comment_to_code_ratio, max_line_length, avg_function_length
     ]
 
 def analyze_code_vulnerabilities(code: str) -> Dict[str, Any]:
