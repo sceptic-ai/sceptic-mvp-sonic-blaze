@@ -388,6 +388,9 @@ def train_model():
         logging.info("Starting model training process")
         
         # Create directories for model and data storage if they don't exist
+    except Exception as e:
+        logging.error(f"Error during model training: {e}")
+        raise
         model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
         os.makedirs(model_dir, exist_ok=True)
         
@@ -606,7 +609,7 @@ def train_model():
         X_train, X_test, y_train, y_test = train_test_split(X_df, y, test_size=0.2, random_state=42)
         
         # Standardize features
-        scaler = StandardScaler()
+    scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
         
@@ -630,7 +633,7 @@ def train_model():
         
         # Train the model
         logging.info("Training model...")
-        history = model.fit(
+    history = model.fit(
             [X_train_padded, X_train_scaled], y_train,
             validation_data=([X_test_padded, X_test_scaled], y_test),
             epochs=6,

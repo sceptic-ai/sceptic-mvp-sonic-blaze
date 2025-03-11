@@ -31,7 +31,7 @@ const SONIC_BLAZE_TESTNET = {
   chainName: "Sonic Blaze Testnet",
   nativeCurrency: {
     name: "SONIC",
-    symbol: "SONIC",
+    symbol: "S",
     decimals: 18
   },
   rpcUrls: ["https://rpc.blaze.soniclabs.com"],
@@ -217,17 +217,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       toast.success(`Switched to ${SONIC_BLAZE_TESTNET.chainName}`);
     } catch (switchError: any) {
       // This error code indicates that the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
+      if (switchError.code === 4902 || switchError.code === -32603) {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [SONIC_BLAZE_TESTNET],
           });
+          
+          // After adding, try to switch again
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: SONIC_BLAZE_TESTNET.chainId }],
+          });
+          
           toast.success(`Added and switched to ${SONIC_BLAZE_TESTNET.chainName}`);
-        } catch (addError) {
-          console.error('Failed to add Sonic Network:', addError);
-          toast.error('Failed to add Sonic Network. Please try adding it manually.');
+        } catch (addError: any) {
+          if (addError.code === 4001) {
+            toast.error('Please approve adding Sonic Network in your wallet');
+          } else {
+            console.error('Failed to add Sonic Network:', addError);
+            toast.error('Failed to add Sonic Network. Please try adding it manually.');
+          }
         }
+      } else if (switchError.code === 4001) {
+        toast.error('Please approve the network switch in your wallet');
       } else {
         console.error('Failed to switch to Sonic Network:', switchError);
         toast.error('Failed to switch network. Please try manually.');

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 
 // Base API configuration
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // TypeScript için ethereum window tanımı
 declare global {
@@ -24,34 +24,66 @@ export interface Analysis {
   };
 }
 
+export interface Vulnerability {
+  type: string;
+  name: string;
+  risk: 'high' | 'medium' | 'low';
+  description: string;
+  score: number;
+}
+
+export interface CodeQuality {
+  indentation_consistency: number;
+  naming_consistency: number;
+  comment_ratio: number;
+}
+
+export interface SecurityAnalysis {
+  vulnerabilities: Vulnerability[];
+  code_quality: CodeQuality;
+  risk_level: 'high' | 'medium' | 'low' | 'unknown';
+  high_risk: boolean;
+  medium_risk: boolean;
+  low_risk: boolean;
+}
+
+export interface AnalysisDetails {
+  total_lines: number;
+  code_lines: number;
+  comment_lines: number;
+  empty_lines: number;
+  complexity_score: number;
+  avg_line_length: number;
+  max_line_length: number;
+  functions_count: number;
+  classes_count: number;
+}
+
+export interface FileAnalysis {
+  file: string;
+  analysis: {
+    prediction: string;
+    confidence: number;
+    risk_score: number;
+    source: string;
+    analysis_details: AnalysisDetails;
+    security_analysis: SecurityAnalysis;
+  };
+}
+
 export interface AnalysisResult {
   request_id: string;
   status: string;
-  id?: string;
-  timestamp?: string;
-  repoUrl?: string;
+  repository?: string;
+  files_analyzed?: number;
+  analyses?: FileAnalysis[];
   result?: {
     prediction: string;
     confidence: number;
-    source?: string;
-    source_probabilities?: Record<string, number>;
     risk_score: number;
-    features?: Record<string, number>;
-    security_analysis?: {
-      vulnerabilities: Array<{
-        type: string;
-        name: string;
-        risk: string;
-        description: string;
-        score: number;
-      }>;
-      code_quality: Record<string, any>;
-      risk_level: string;
-      high_risk: boolean;
-      medium_risk: boolean;
-      low_risk: boolean;
-    };
-    processing_time_ms?: number;
+    source: string;
+    analysis_details: AnalysisDetails;
+    security_analysis: SecurityAnalysis;
   };
   error?: string;
 }
@@ -63,9 +95,15 @@ export interface DailyMetrics {
 }
 
 // Updated API request types to match the new backend
-export interface GithubAnalysisRequest {
+interface AnalyzeCodeParams {
+  code: string;
+  language: string;
+  signature: string;
+}
+
+interface AnalyzeGithubParams {
   url: string;
-  max_files?: number;
+  max_files: number;
   signature: string;
 }
 
@@ -97,12 +135,15 @@ export interface ContractInfo {
     name: string;
     chainId: string;
     rpcUrl: string;
+    symbol: string;
+    explorerUrl: string;
+    faucetUrl: string;
   };
 }
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: apiUrl,
+  baseURL: API_URL,
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -140,22 +181,22 @@ api.interceptors.response.use(
 );
 
 // Updated functions with new API endpoints
-export const analyzeGithubRepo = async (data: GithubAnalysisRequest): Promise<AnalysisResult> => {
+export const analyzeCode = async (params: AnalyzeCodeParams): Promise<AnalysisResult> => {
   try {
-    const response = await api.post('/analyze/github', data);
+    const response = await api.post('/analyze/code', params);
     return response.data;
   } catch (error) {
-    console.error('Error analyzing GitHub repo:', error);
+    console.error('Error analyzing code:', error);
     throw error;
   }
 };
 
-export const analyzeCode = async (data: CodeAnalysisRequest): Promise<AnalysisResult> => {
+export const analyzeGithubRepo = async (params: AnalyzeGithubParams): Promise<AnalysisResult> => {
   try {
-    const response = await api.post('/analyze', data);
+    const response = await api.post('/analyze/github', params);
     return response.data;
   } catch (error) {
-    console.error('Error analyzing code:', error);
+    console.error('Error analyzing GitHub repo:', error);
     throw error;
   }
 };
@@ -174,33 +215,44 @@ export const getAnalysisResult = async (requestId: string): Promise<AnalysisResu
 export const fetchAnalyses = async (): Promise<AnalysisResult[]> => {
   try {
     const response = await api.get('/analyses');
-    return response.data.map((item: any) => ({
-      id: item.id,
-      repoUrl: item.repo_url,
-      timestamp: item.timestamp,
-      status: item.status,
-      result: item.result,
-      blockchainTx: item.blockchain_tx,
-      explorerUrl: item.explorer_url
-    }));
+    return response.data;
   } catch (error) {
     console.error('Analizleri getirme hatası:', error);
-    // Hata durumunda mocklanmış veri dönebiliriz
-    return [
-      {
-        id: 'error_1',
-        request_id: 'error_1',
-        repoUrl: 'Error fetching analyses',
-        timestamp: new Date().toISOString(),
-        status: 'failed',
-        result: {
-          risk_score: 0,
-          prediction: 'Unknown',
-          confidence: 0,
-          source: 'Error'
+    // Hata durumunda güvenli varsayılan değerler dön
+    return [{
+      request_id: 'error_1',
+      status: 'failed',
+      repository: 'Error fetching analyses',
+      result: {
+        prediction: 'Unknown',
+        confidence: 0,
+        risk_score: 0,
+        source: 'Error',
+        analysis_details: {
+          total_lines: 0,
+          code_lines: 0,
+          comment_lines: 0,
+          empty_lines: 0,
+          complexity_score: 0,
+          avg_line_length: 0,
+          max_line_length: 0,
+          functions_count: 0,
+          classes_count: 0
+        },
+        security_analysis: {
+          vulnerabilities: [],
+          code_quality: {
+            indentation_consistency: 0,
+            naming_consistency: 0,
+            comment_ratio: 0
+          },
+          risk_level: 'unknown',
+          high_risk: false,
+          medium_risk: false,
+          low_risk: false
         }
       }
-    ];
+    }];
   }
 };
 
@@ -222,7 +274,6 @@ export const fetchDailyMetrics = async (): Promise<DailyMetrics[]> => {
     return last7Days.map(date => {
       // O güne ait analizleri filtrele
       const dailyAnalyses = analyses.filter(a => 
-        a.timestamp && a.timestamp.split('T')[0] === date && 
         a.status === 'completed' && 
         a.result?.risk_score !== undefined
       );

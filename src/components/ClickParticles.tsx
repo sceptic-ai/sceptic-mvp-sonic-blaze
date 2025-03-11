@@ -52,7 +52,7 @@ export function createParticles(event: MouseEvent | React.MouseEvent) {
         particle.x += Math.cos(particle.angle) * particle.velocity;
         particle.y += Math.sin(particle.angle) * particle.velocity + 0.8; // Increased gravity
         particle.element.style.transform = `translate(${particle.x}px, ${particle.y}px)`;
-        particle.element.style.opacity = gsap.utils.random(0.5, 1); // Added opacity variation
+        particle.element.style.opacity = String(gsap.utils.random(0.5, 1)); // Fixed type error by converting to string
       });
     },
     onComplete: () => {

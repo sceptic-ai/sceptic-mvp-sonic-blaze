@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { createParticles } from '../components/ClickParticles';
 import { LogoAnimation } from '../components/LogoAnimation';
-import { ContractInteraction } from '../components/ContractInteraction';
+import { ContractInteraction } from '../components/ContractInteraction.tsx';
 
 const features = [
   {

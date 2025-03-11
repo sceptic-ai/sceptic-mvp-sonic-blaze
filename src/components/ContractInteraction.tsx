@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactElement } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getProjectName, updateProjectName, getContractOwner, isContractOwner } from '../utils/contract';
 import { AnimatedButton } from './AnimatedButton';
 import { useWallet } from '../contexts/WalletContext';
@@ -8,12 +8,12 @@ import { updateContractProjectName, getContractInfo } from '../lib/api';
 // Export types for TypeScript
 export interface ContractInteractionProps {}
 
-export function ContractInteraction(): ReactElement {
+export const ContractInteraction: React.FC<ContractInteractionProps> = () => {
   const [projectName, setProjectName] = useState<string>('');
   const [newName, setNewName] = useState<string>('');
   const [ownerAddress, setOwnerAddress] = useState<string>('');
   const [isOwner, setIsOwner] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const { address } = useWallet();
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function ContractInteraction(): ReactElement {
 
   const loadContractData = async (): Promise<void> => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       
       // Get the project name from the contract
       const name = await getProjectName().catch(error => {
@@ -48,15 +48,15 @@ export function ContractInteraction(): ReactElement {
         setIsOwner(ownerStatus);
       }
       
-      setIsLoading(false);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading contract data:', error);
       toast.error('Error loading contract data. Please check your wallet connection.');
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const syncWithBackend = async (projectName: string, txHash: string): Promise<void> => {
+  const syncWithBackend = async (_projectName: string, txHash: string): Promise<void> => {
     try {
       const networkInfo = await getContractInfo();
       const network = networkInfo?.network?.name || 'Sonic Network';
@@ -84,7 +84,7 @@ export function ContractInteraction(): ReactElement {
     }
     
     try {
-      setIsLoading(true);
+      setLoading(true);
       const txHash = await updateProjectName(newName);
       
       toast.success(
@@ -103,7 +103,7 @@ export function ContractInteraction(): ReactElement {
       // Sync with backend
       await syncWithBackend(newName, txHash);
       
-      setIsLoading(false);
+      setLoading(false);
     } catch (error: any) {
       console.error('Error updating project name:', error);
       
@@ -114,39 +114,39 @@ export function ContractInteraction(): ReactElement {
         toast.error('Error updating project name. Please try again.');
       }
       
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   if (!address) {
     return (
-      <div className="bg-white rounded-lg p-6 shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Contract Interaction</h2>
-        <p className="text-gray-600 mb-4">Connect your wallet to interact with the ScepticSimple contract.</p>
+      <div className="bg-gray-900 rounded-lg p-6 shadow-md border border-gray-800">
+        <h2 className="text-xl font-semibold mb-4 text-white">Contract Interaction</h2>
+        <p className="text-gray-400 mb-4">Connect your wallet to interact with the ScepticSimple contract.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Contract Interaction</h2>
+    <div className="bg-gray-900 rounded-lg p-6 shadow-md border border-gray-800">
+      <h2 className="text-xl font-semibold mb-4 text-white">Contract Interaction</h2>
       
-      {isLoading ? (
+      {loading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-200"></div>
         </div>
       ) : (
         <>
           <div className="mb-6">
-            <h3 className="font-medium text-gray-700 mb-2">Current Project Name:</h3>
+            <h3 className="font-medium text-gray-300 mb-2">Current Project Name:</h3>
             <p className="text-2xl font-semibold text-primary-200">{projectName || 'Loading...'}</p>
           </div>
           
           <div className="mb-6">
-            <h3 className="font-medium text-gray-700 mb-2">Contract Owner:</h3>
-            <p className="font-mono text-sm">{ownerAddress || 'Loading...'}</p>
+            <h3 className="font-medium text-gray-300 mb-2">Contract Owner:</h3>
+            <p className="font-mono text-sm text-gray-400">{ownerAddress || 'Loading...'}</p>
             {isOwner && (
-              <span className="inline-block mt-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+              <span className="inline-block mt-2 bg-green-900 text-green-200 text-xs px-2 py-1 rounded">
                 You are the owner
               </span>
             )}
@@ -154,16 +154,16 @@ export function ContractInteraction(): ReactElement {
           
           {isOwner && (
             <form onSubmit={handleUpdateName} className="mt-6">
-              <h3 className="font-medium text-gray-700 mb-2">Update Project Name:</h3>
+              <h3 className="font-medium text-gray-300 mb-2">Update Project Name:</h3>
               <div className="flex space-x-2">
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Enter new project name"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
                 />
-                <AnimatedButton type="submit" disabled={isLoading}>
+                <AnimatedButton type="submit" disabled={loading}>
                   Update
                 </AnimatedButton>
               </div>
@@ -179,4 +179,4 @@ export function ContractInteraction(): ReactElement {
       )}
     </div>
   );
-} 
+}; 

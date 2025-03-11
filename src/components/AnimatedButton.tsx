@@ -12,12 +12,11 @@ export function AnimatedButton({ variant = 'primary', children, className, ...pr
     : variant === 'secondary' 
     ? 'btn-secondary' 
     : 'btn-outline';
-
   return (
     <motion.button
       className={`${baseClass} ${className || ''}`}
       {...buttonTap}
-      {...props}
+      {...props as any}
     >
       {children}
     </motion.button>

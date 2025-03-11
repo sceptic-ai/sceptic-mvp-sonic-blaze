@@ -1,7 +1,5 @@
-import React from 'react';
 import { 
   User,
-  Mail,
   Bell,
   Shield,
   Key,

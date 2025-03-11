@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import os
 from dotenv import load_dotenv
 from eth_account.messages import encode_defunct
-from web3 import Web3
+from web3 import Web3 
 import time
 
 # Configure logging
@@ -90,9 +90,12 @@ MOCK_CONTRACT_INFO = {
         }
     },
     "network": {
-        "name": "Sonic Network",
+        "name": "Sonic Blaze Testnet",
         "chainId": "57054",
-        "rpcUrl": "https://rpc.blaze.soniclabs.com"
+        "rpcUrl": "https://rpc.blaze.soniclabs.com",
+        "explorerUrl": "https://testnet.sonicscan.org",
+        "symbol": "S",
+        "faucetUrl": "https://testnet.soniclabs.com/account"
     }
 }
 
@@ -179,82 +182,169 @@ async def fetch_github_content(url: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 def analyze_code_content(content: str) -> Dict[str, Any]:
-    """Analyze code content for AI patterns"""
-    # Simple analysis metrics
-    lines = content.split('\n')
-    total_lines = len(lines)
-    empty_lines = len([l for l in lines if not l.strip()])
-    comment_lines = len([l for l in lines if l.strip().startswith(('#', '//', '/*', '*', '"""', "'"""))])
-    
-    # Code complexity metrics
-    complexity_score = 0
-    nested_levels = 0
-    max_line_length = 0
-    function_count = 0
-    
-    for line in lines:
-        # Count indentation levels
-        indent = len(line) - len(line.lstrip())
-        nested_levels = max(nested_levels, indent // 4)
+    """
+    Analyze code content and return detailed metrics
+    """
+    try:
+        if not content or not content.strip():
+            raise ValueError("Empty code content")
+
+        # Split into lines for analysis
+        lines = content.strip().split('\n')
+        total_lines = len(lines)
         
-        # Track max line length
-        max_line_length = max(max_line_length, len(line))
+        # Basic metrics
+        code_lines = len([l for l in lines if l.strip() and not l.strip().startswith(('#', '//', '/*', '*', '"""', "'''"))])
+        comment_lines = len([l for l in lines if l.strip().startswith(('#', '//', '/*', '*', '"""', "'''"))])
+        empty_lines = len([l for l in lines if not l.strip()])
         
-        # Count function definitions
-        if re.search(r'(def|function|class|\) {|\) =>) ', line):
-            function_count += 1
+        # Function and class analysis
+        function_pattern = r'(def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\()'
+        class_pattern = r'(class\s+[a-zA-Z_][a-zA-Z0-9_]*\s*[:\(])'
+        functions = re.findall(function_pattern, content)
+        classes = re.findall(class_pattern, content)
         
-        # Add to complexity score
-        if re.search(r'(if|for|while|switch|catch|try|else|elif) ', line):
-            complexity_score += 1
-    
-    # Calculate metrics
-    comment_ratio = comment_lines / total_lines if total_lines > 0 else 0
-    code_density = (total_lines - empty_lines) / total_lines if total_lines > 0 else 0
-    avg_line_length = sum(len(l) for l in lines) / total_lines if total_lines > 0 else 0
-    
-    # AI detection heuristics
-    ai_indicators = {
-        "consistent_style": comment_ratio > 0.1 and comment_ratio < 0.4,
-        "reasonable_length": 20 < avg_line_length < 100,
-        "moderate_complexity": 0.05 < complexity_score / total_lines < 0.2 if total_lines > 0 else False,
-        "natural_nesting": nested_levels < 5,
-    }
-    
-    ai_confidence = sum(1 for v in ai_indicators.values() if v) / len(ai_indicators)
-    is_ai_generated = ai_confidence > 0.7
-    
-    return {
-        "metrics": {
-            "total_lines": total_lines,
-            "comment_ratio": comment_ratio,
-            "code_density": code_density,
-            "complexity_score": complexity_score,
-            "max_line_length": max_line_length,
-            "avg_line_length": avg_line_length,
-            "function_count": function_count,
-            "nested_levels": nested_levels
-        },
-        "ai_analysis": {
-            "is_ai_generated": is_ai_generated,
-            "confidence": ai_confidence,
-            "indicators": ai_indicators
-        },
-        "risk_assessment": {
-            "risk_score": min(100, int(
-                (complexity_score * 10 +
-                nested_levels * 15 +
-                (max_line_length > 120) * 20 +
-                (comment_ratio < 0.1) * 25) / 2
-            )),
-            "warnings": [
-                "High complexity" if complexity_score > 10 else None,
-                "Deep nesting" if nested_levels > 4 else None,
-                "Long lines" if max_line_length > 120 else None,
-                "Low comment ratio" if comment_ratio < 0.1 else None
-            ]
+        # Complexity metrics
+        complexity_indicators = [
+            'if', 'else', 'elif', 'for', 'while', 'try', 'except',
+            'with', 'break', 'continue', 'return', 'yield', 'match', 'case'
+        ]
+        complexity_score = sum(1 for word in complexity_indicators if re.search(rf'\b{word}\b', content))
+        
+        # Line length analysis
+        line_lengths = [len(l) for l in lines if l.strip()]
+        avg_line_length = sum(line_lengths) / len(line_lengths) if line_lengths else 0
+        max_line_length = max(line_lengths) if line_lengths else 0
+        
+        # Variable naming consistency
+        var_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*='
+        variables = re.findall(var_pattern, content)
+        snake_case = sum(1 for v in variables if re.match(r'^[a-z][a-z0-9_]*$', v))
+        camel_case = sum(1 for v in variables if re.match(r'^[a-z][a-zA-Z0-9]*$', v))
+        naming_consistency = max(snake_case, camel_case) / len(variables) if variables else 1
+        
+        # AI detection indicators
+        ai_indicators = {
+            'consistent_formatting': 0.8 if all(l.startswith((' ' * 4, '\t')) for l in lines if l.strip()) else 0.4,
+            'comprehensive_comments': 0.9 if comment_lines / total_lines > 0.1 else 0.3,
+            'structured_functions': 0.8 if len(functions) > 0 and all('"""' in f or "'''" in f for f in functions) else 0.4,
+            'variable_naming': 0.9 if naming_consistency > 0.8 else 0.5,
+            'complexity_balance': 0.7 if 0.05 < complexity_score / code_lines < 0.2 else 0.4
         }
-    }
+        
+        # Calculate confidence score
+        confidence_score = sum(ai_indicators.values()) / len(ai_indicators)
+        
+        # Risk assessment
+        risk_factors = {
+            'high_complexity': complexity_score > 20,
+            'long_lines': max_line_length > 100,
+            'poor_commenting': comment_lines / total_lines < 0.05 if total_lines > 0 else True,
+            'inconsistent_naming': naming_consistency < 0.7,
+            'deep_nesting': bool(re.search(r'^\s{16,}', content, re.MULTILINE))
+        }
+        
+        risk_score = sum(risk_factors.values()) * 20  # Scale to 0-100
+        
+        # Generate warnings
+        warnings = []
+        if risk_factors['high_complexity']:
+            warnings.append("High code complexity detected - consider breaking down into smaller functions")
+        if risk_factors['long_lines']:
+            warnings.append("Long lines detected - consider breaking into multiple lines for readability")
+        if risk_factors['poor_commenting']:
+            warnings.append("Low comment ratio - consider adding more documentation")
+        if risk_factors['inconsistent_naming']:
+            warnings.append("Inconsistent variable naming detected - stick to one convention")
+        if risk_factors['deep_nesting']:
+            warnings.append("Deep nesting detected - consider restructuring the code")
+        
+        # Determine source prediction
+        prediction = "AI" if confidence_score > 0.6 else "Human"
+        source_confidence = confidence_score if prediction == "AI" else (1 - confidence_score)
+        
+        # Security vulnerabilities check
+        vulnerabilities = []
+        security_patterns = {
+            'sql_injection': (r'execute\s*\(|cursor\.execute|raw_input|input\s*\(', 'Potential SQL injection vulnerability'),
+            'command_injection': (r'os\.system|subprocess\.call|eval\(|exec\(', 'Potential command injection vulnerability'),
+            'hardcoded_secrets': (r'password\s*=|secret\s*=|api_key\s*=', 'Hardcoded secrets detected'),
+            'unsafe_deserialization': (r'pickle\.loads|yaml\.load', 'Unsafe deserialization detected'),
+            'path_traversal': (r'\.\.\/|\.\.\\', 'Potential path traversal vulnerability')
+        }
+        
+        for vuln_type, (pattern, message) in security_patterns.items():
+            if re.search(pattern, content, re.IGNORECASE):
+                vulnerabilities.append({
+                    "type": vuln_type,
+                    "name": message,
+                    "risk": "high",
+                    "description": f"Found pattern matching {message.lower()}",
+                    "score": 8
+                })
+        
+        return {
+            "prediction": prediction,
+            "confidence": round(source_confidence * 100, 2),
+            "risk_score": min(100, round(risk_score)),
+            "source": f"{prediction} ({round(source_confidence * 100)}% confidence)",
+            "analysis_details": {
+                "total_lines": total_lines,
+                "code_lines": code_lines,
+                "comment_lines": comment_lines,
+                "empty_lines": empty_lines,
+                "complexity_score": complexity_score,
+                "avg_line_length": round(avg_line_length, 2),
+                "max_line_length": max_line_length,
+                "functions_count": len(functions),
+                "classes_count": len(classes)
+            },
+            "security_analysis": {
+                "vulnerabilities": vulnerabilities,
+                "code_quality": {
+                    "indentation_consistency": round(ai_indicators['consistent_formatting'] * 100),
+                    "naming_consistency": round(naming_consistency * 100),
+                    "comment_ratio": round((comment_lines / total_lines * 100) if total_lines > 0 else 0, 2)
+                },
+                "risk_level": "high" if risk_score > 70 else "medium" if risk_score > 40 else "low",
+                "high_risk": risk_score > 70,
+                "medium_risk": 40 < risk_score <= 70,
+                "low_risk": risk_score <= 40,
+                "warnings": warnings
+            }
+        }
+    except Exception as e:
+        logging.error(f"Error in analyze_code_content: {str(e)}")
+        return {
+            "prediction": "Error",
+            "confidence": 0,
+            "risk_score": 0,
+            "source": "Analysis Error",
+            "analysis_details": {
+                "total_lines": 0,
+                "code_lines": 0,
+                "comment_lines": 0,
+                "empty_lines": 0,
+                "complexity_score": 0,
+                "avg_line_length": 0,
+                "max_line_length": 0,
+                "functions_count": 0,
+                "classes_count": 0
+            },
+            "security_analysis": {
+                "vulnerabilities": [],
+                "code_quality": {
+                    "indentation_consistency": 0,
+                    "naming_consistency": 0,
+                    "comment_ratio": 0
+                },
+                "risk_level": "unknown",
+                "high_risk": False,
+                "medium_risk": False,
+                "low_risk": False,
+                "warnings": ["Analysis failed due to an error"]
+            }
+        }
 
 def verify_signature(message: str, signature: str) -> bool:
     """Verify an Sonic Network Blaze signature"""
@@ -296,6 +386,9 @@ Timestamp: {int(time.time())}"""
         request_id = generate_request_id()
         result = analyze_code_content(request.code)
         
+        # Cache'e kaydet
+        await store_analysis_result(request_id, result)
+        
         return {
             "request_id": request_id,
             "status": "completed",
@@ -320,7 +413,6 @@ Timestamp: {int(time.time())}"""
         if not verify_signature(message, request.signature):
             raise HTTPException(status_code=401, detail="Invalid signature")
         
-        # Continue with existing GitHub analysis code
         request_id = generate_request_id()
         
         try:
@@ -328,7 +420,21 @@ Timestamp: {int(time.time())}"""
             if not repo_content.get("contents"):
                 raise HTTPException(status_code=400, detail="No suitable files found for analysis")
             
-            results = []
+            # Repository level metrics
+            total_files = len(repo_content["contents"])
+            analyzed_files = min(total_files, request.max_files)
+            total_lines = 0
+            total_code_lines = 0
+            total_comment_lines = 0
+            total_empty_lines = 0
+            total_functions = 0
+            total_classes = 0
+            total_complexity = 0
+            languages_used = {}
+            file_results = []
+            overall_risk_score = 0
+            all_vulnerabilities = []
+            
             for file_info in repo_content["contents"][:request.max_files]:
                 try:
                     async with aiohttp.ClientSession() as session:
@@ -336,22 +442,99 @@ Timestamp: {int(time.time())}"""
                             if response.status == 200:
                                 content = await response.text()
                                 result = analyze_code_content(content)
-                                results.append({
-                                    "file": file_info["name"],
+                                
+                                # Update repository metrics
+                                details = result["analysis_details"]
+                                total_lines += details["total_lines"]
+                                total_code_lines += details["code_lines"]
+                                total_comment_lines += details["comment_lines"]
+                                total_empty_lines += details["empty_lines"]
+                                total_functions += details["functions_count"]
+                                total_classes += details["classes_count"]
+                                total_complexity += details["complexity_score"]
+                                
+                                # Track language usage
+                                ext = file_info["name"].split('.')[-1].lower()
+                                lang_map = {
+                                    'py': 'Python',
+                                    'js': 'JavaScript',
+                                    'ts': 'TypeScript',
+                                    'sol': 'Solidity',
+                                    'java': 'Java',
+                                    'cpp': 'C++',
+                                    'go': 'Go'
+                                }
+                                lang = lang_map.get(ext, 'Other')
+                                languages_used[lang] = languages_used.get(lang, 0) + 1
+                                
+                                # Collect vulnerabilities
+                                if result["security_analysis"]["vulnerabilities"]:
+                                    all_vulnerabilities.extend(result["security_analysis"]["vulnerabilities"])
+                                
+                                # Update risk score
+                                overall_risk_score += result["risk_score"]
+                                
+                                file_results.append({
+                                    "file": file_info["path"],
+                                    "language": lang,
                                     "analysis": result
                                 })
                 except Exception as e:
                     logger.error(f"Error analyzing file {file_info['name']}: {str(e)}")
                     continue
             
+            # Calculate repository-wide metrics
+            avg_risk_score = overall_risk_score / len(file_results) if file_results else 0
+            
+            # Group vulnerabilities by type and risk level
+            vulnerability_summary = {
+                "high": len([v for v in all_vulnerabilities if v["risk"] == "high"]),
+                "medium": len([v for v in all_vulnerabilities if v["risk"] == "medium"]),
+                "low": len([v for v in all_vulnerabilities if v["risk"] == "low"])
+            }
+            
+            # Calculate code quality metrics
+            code_quality = {
+                "maintainability_index": min(100, (total_comment_lines / total_lines * 50 + 
+                                                 (total_functions + total_classes) / total_lines * 50)) if total_lines > 0 else 0,
+                "documentation_ratio": (total_comment_lines / total_lines * 100) if total_lines > 0 else 0,
+                "code_complexity": total_complexity / len(file_results) if file_results else 0
+            }
+            
+            analysis_result = {
+                "repository": str(request.url),
+                "repository_info": {
+                    "name": repo_content["repo_info"]["name"],
+                    "description": repo_content["repo_info"]["description"],
+                    "stars": repo_content["repo_info"]["stargazers_count"],
+                    "forks": repo_content["repo_info"]["forks_count"],
+                    "last_updated": repo_content["repo_info"]["updated_at"]
+                },
+                "analysis_summary": {
+                    "total_files": total_files,
+                    "analyzed_files": analyzed_files,
+                    "total_lines": total_lines,
+                    "code_lines": total_code_lines,
+                    "comment_lines": total_comment_lines,
+                    "empty_lines": total_empty_lines,
+                    "total_functions": total_functions,
+                    "total_classes": total_classes,
+                    "languages": languages_used,
+                    "average_risk_score": round(avg_risk_score, 2),
+                    "vulnerability_summary": vulnerability_summary,
+                    "code_quality": code_quality
+                },
+                "files_analyzed": len(file_results),
+                "analyses": file_results
+            }
+            
+            # Cache'e kaydet
+            await store_analysis_result(request_id, analysis_result, str(request.url))
+            
             return {
                 "request_id": request_id,
                 "status": "completed",
-                "result": {
-                    "repository": str(request.url),
-                    "files_analyzed": len(results),
-                    "analyses": results
-                }
+                "result": analysis_result
             }
         except Exception as e:
             logging.error(f"Error analyzing GitHub repository: {str(e)}")
@@ -411,6 +594,38 @@ async def get_contract_updates(limit: int = 10):
     except Exception as e:
         logger.error(f"Error getting contract updates: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analyses")
+async def get_analyses():
+    try:
+        # Analiz sonuçlarını cache'den al ve formatla
+        analyses = []
+        for request_id, analysis in analysis_cache.items():
+            analyses.append({
+                "id": request_id,
+                "repoUrl": analysis.get("result", {}).get("repository"),
+                "timestamp": analysis.get("timestamp", datetime.now().isoformat()),
+                "status": analysis.get("status", "completed"),
+                "result": analysis.get("result", {}),
+                "blockchainTx": analysis.get("blockchainTx"),
+                "explorerUrl": analysis.get("explorerUrl")
+            })
+        
+        # En son yapılan analizleri başa getir
+        analyses.sort(key=lambda x: x["timestamp"], reverse=True)
+        return analyses
+    except Exception as e:
+        logger.error(f"Error getting analyses: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Analiz sonuçlarını cache'e kaydetme fonksiyonunu güncelleyelim
+async def store_analysis_result(request_id: str, result: Dict[str, Any], repository_url: Optional[str] = None):
+    analysis_cache[request_id] = {
+        "status": "completed",
+        "timestamp": datetime.now().isoformat(),
+        "result": result,
+        "repository": repository_url
+    }
 
 if __name__ == "__main__":
     import uvicorn

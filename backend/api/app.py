@@ -21,7 +21,7 @@ try:
     from backend.blockchain.sonic import store_analysis_on_chain, get_analysis_from_chain, check_connection
 except ImportError:
     logging.warning("Blockchain modülü yüklenemedi. Blockchain fonksiyonları devre dışı.")
-    # Mocklanmış fonksiyonlar
+
     def store_analysis_on_chain(analysis_data, testnet=None):
         return {"success": False, "error": "Blockchain modülü yüklenmedi"}
     def get_analysis_from_chain(audit_id, testnet=None):

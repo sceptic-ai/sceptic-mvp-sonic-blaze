@@ -12,20 +12,36 @@ const getContract = async (): Promise<ethers.Contract> => {
     throw new Error('No Ethereum wallet found. Please install MetaMask or similar wallet.');
   }
   
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
-  return new ethers.Contract(
-    import.meta.env.VITE_CONTRACT_ADDRESS,
-    ScepticSimpleABI,
-    signer
-  );
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum, {
+      name: 'Sonic Blaze Testnet',
+      chainId: 57054
+    });
+    
+    const signer = await provider.getSigner();
+    const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+    
+    if (!contractAddress) {
+      throw new Error('Contract address not found in environment variables');
+    }
+    
+    return new ethers.Contract(
+      contractAddress,
+      ScepticSimpleABI,
+      signer
+    );
+  } catch (error) {
+    console.error('Error creating contract instance:', error);
+    throw error;
+  }
 };
 
 // Get the project name from the contract
 export const getProjectName = async (): Promise<string> => {
   try {
     const contract = await getContract();
-    return await contract.projectName();
+    const name = await contract.projectName();
+    return name || 'Unnamed Project';
   } catch (error) {
     console.error('Error getting project name:', error);
     throw error;
@@ -37,10 +53,13 @@ export const updateProjectName = async (newName: string): Promise<string> => {
   try {
     const contract = await getContract();
     const tx = await contract.updateName(newName);
-    await tx.wait();
-    return tx.hash;
-  } catch (error) {
+    const receipt = await tx.wait();
+    return receipt.hash;
+  } catch (error: any) {
     console.error('Error updating project name:', error);
+    if (error.message.includes('owner')) {
+      throw new Error('Only the contract owner can update the project name');
+    }
     throw error;
   }
 };
@@ -49,7 +68,9 @@ export const updateProjectName = async (newName: string): Promise<string> => {
 export const getContractOwner = async (): Promise<string> => {
   try {
     const contract = await getContract();
-    return await contract.owner();
+    const owner = await contract.owner();
+    if (!owner) throw new Error('Could not get contract owner');
+    return owner;
   } catch (error) {
     console.error('Error getting contract owner:', error);
     throw error;

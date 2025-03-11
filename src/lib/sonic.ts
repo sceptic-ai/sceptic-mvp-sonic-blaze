@@ -207,9 +207,10 @@ class BlockchainClient {
         networkUtilization: Math.min(100, Math.floor(Math.random() * 40 + 60)),
         historicalData,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error fetching network stats for chain ${chainId}:`, error);
-      throw new Error(`Failed to fetch network stats: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch network stats: ${errorMessage}`);
     }
   }
 
@@ -313,9 +314,10 @@ class BlockchainClient {
         topHolders,
         priceHistory,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error fetching token data for ${address} on chain ${chainId}:`, error);
-      throw new Error(`Failed to fetch token data: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch token data: ${errorMessage}`);
     }
   }
 }
