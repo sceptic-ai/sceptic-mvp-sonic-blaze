@@ -1,7 +1,7 @@
 # Sceptic AI: AI-Powered Code Analysis & Blockchain Verification Platform
 
 
-## [Watch Demo Video](https://screen.studio/share/xIXBd3BT)
+## [📽️Watch Demo Video](https://screen.studio/share/xIXBd3BT)
 
 ## Table of Contents
 
